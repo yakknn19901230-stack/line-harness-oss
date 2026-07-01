@@ -11,10 +11,13 @@ interface Props {
   onSent: (message: string) => void
 }
 
-// 暫定のお祝い文面（v2 で差し替え前提）。{name} は友だちの表示名に置換する。
+// お祝い文面。{name} は友だちの表示名に置換する。
+// 3行構成。各行の改行は textarea にそのまま反映させる（\n を保持）。
 function buildDefaultMessage(name: string): string {
   const n = name || 'お客'
-  return `${n}様お誕生日おめでとうございます。${n}様にとって、この一年が健やかで実り多い年になりますようお祈りしています。`
+  return `${n}さん、お誕生日おめでとうございます🎂
+1年に一度の日、ゆっくりできていますか。
+${n}さんにとって、いい1年になりますように。`
 }
 
 /**
@@ -78,7 +81,7 @@ export default function BirthdaySendModal({ friendId, friendName, onClose, onSen
 
         <form onSubmit={handleSend} className="px-5 py-4 space-y-4">
           <p className="text-xs text-gray-500 leading-relaxed bg-green-50 border border-green-100 rounded-lg px-3 py-2">
-            下の文章はそのまま送れますが、自由に書き換えても大丈夫です。内容を確認して「送信」を押してください😊
+            そのまま送れますが、相手のことを一言添えると、より気持ちが伝わります。内容を確認して「送信」を押してください😊
           </p>
 
           <div>
