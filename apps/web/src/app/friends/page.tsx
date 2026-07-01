@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
 import Header from '@/components/layout/header'
 import FriendListTable from '@/components/friends/friend-list-table'
+import BirthdayPanel from '@/components/friends/birthday-panel'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
 
@@ -141,6 +142,10 @@ export default function FriendsPage() {
         title="友だちリスト"
         description="友だちの検索や、詳細情報の確認ができます。"
       />
+
+      {/* 今週の誕生日パネル — 現在読み込み済みの友だち(＋metadata)から算出。
+          追加データ取得はしない（v1）。該当者ゼロなら静かに案内する。 */}
+      <BirthdayPanel friends={friends} onToast={showToast} />
 
       {/* Search + sort bar — L-step style */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
