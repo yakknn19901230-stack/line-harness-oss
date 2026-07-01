@@ -7,6 +7,7 @@ import type { Scenario, LineAccount } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
+import GuidePanel from '@/components/shared/guide-panel'
 
 type ScenarioWithCount = Scenario & {
   stepCount?: number
@@ -184,6 +185,32 @@ export default function FriendAddSettingsPage() {
       />
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+        <GuidePanel title="あいさつメッセージって何？（はじめての方はこちら）">
+          <p className="mb-3">
+            <strong className="text-gray-900">あいさつメッセージ</strong>とは、あなたのLINEを
+            「友だち追加」してもらった<strong className="text-gray-900">その瞬間に、自動で届く最初のメッセージ</strong>のことです。
+            お店でいう「いらっしゃいませ！」のごあいさつを、24時間ずっと自動でやってくれるイメージです😊
+          </p>
+          <p className="mb-2 font-medium text-gray-900">設定はかんたん、3ステップだけでOKです：</p>
+          <ol className="space-y-2">
+            <li className="flex gap-2">
+              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">1</span>
+              <span><strong className="text-gray-900">この画面で「入口」を作ります</strong>。下のアカウントにある「作成」ボタンを押すだけです。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">2</span>
+              <span><strong className="text-gray-900">次の画面でメッセージ本文を書きます</strong>。届けたいあいさつ文を入力しましょう。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">3</span>
+              <span><strong className="text-gray-900">スイッチをONにして完成です</strong>。この画面の緑色のスイッチを入れると配信が始まります。</span>
+            </li>
+          </ol>
+          <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+            ⚠ 最後の「スイッチON」を忘れると、せっかく書いたメッセージが届きません。忘れずにONにしましょう。
+          </p>
+        </GuidePanel>
+
         {error && (
           <div className="p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
         )}
@@ -278,18 +305,18 @@ function AccountSection({
   const isHealthy = activeCount > 0
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div className={`px-4 py-3 flex items-center justify-between border-b ${isHealthy ? 'border-gray-200' : 'border-red-200 bg-red-50'}`}>
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${isHealthy ? 'border-gray-200' : 'border-amber-200 bg-amber-50'}`}>
         <div className="flex items-center gap-3">
           <h2 className="font-semibold text-gray-900">{row.account.name}</h2>
           <span className="text-xs text-gray-400">{row.account.channelId}</span>
         </div>
         {isHealthy ? (
           <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-            アクティブ {activeCount} 件
+            設定ずみ ・ 配信中 {activeCount} 件
           </span>
         ) : (
-          <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">
-            ⚠ アクティブ 0 件 — 新規友だちに何も届きません
+          <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">
+            まだあいさつメッセージが設定されていません
           </span>
         )}
       </div>
@@ -298,18 +325,11 @@ function AccountSection({
         <div className="px-4 py-3 text-sm text-red-600">読み込みエラー: {row.loadError}</div>
       )}
 
-      {row.scenarios.length === 0 && !row.loadError ? (
-        <div className="px-4 py-6 text-center text-sm text-gray-500">
-          このアカウントには friend_add トリガーのシナリオがありません。
-          <button
-            type="button"
-            onClick={onCreate}
-            className="ml-2 text-green-700 underline hover:text-green-800"
-          >
-            このアカウントでシナリオを作成
-          </button>
-        </div>
-      ) : (
+      {!row.loadError && !isHealthy && (
+        <EmptyStateGuide hasScenarios={row.scenarios.length > 0} onCreate={onCreate} />
+      )}
+
+      {!row.loadError && row.scenarios.length > 0 && (
         <ul className="divide-y divide-gray-100">
           {row.scenarios.map(scenario => (
             <li key={scenario.id} className="px-4 py-3 flex items-center justify-between gap-3">
@@ -342,6 +362,64 @@ function AccountSection({
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  )
+}
+
+/**
+ * アクティブなあいさつが0件のアカウントに出す、前向きな手順ガイド。
+ * まだ入口すら無い場合 (hasScenarios=false) と、作ったがOFFのままの場合 (true) で
+ * 文言を出し分ける。「まず作りましょう」という応援トーンにする。
+ */
+function EmptyStateGuide({
+  hasScenarios,
+  onCreate,
+}: {
+  hasScenarios: boolean
+  onCreate: () => void
+}) {
+  return (
+    <div className="px-4 py-4 bg-amber-50/40 border-b border-amber-100">
+      {hasScenarios ? (
+        <div className="text-sm text-gray-700">
+          <p className="font-medium text-gray-900 mb-1">あと少しで完成です！</p>
+          <p>
+            メッセージはもう作られています。あとは下の一覧にある
+            <span className="mx-1 inline-flex items-center align-middle">
+              <span className="inline-block h-4 w-7 rounded-full bg-gray-300 relative">
+                <span className="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white" />
+              </span>
+            </span>
+            スイッチをONにするだけで、新しい友だちにあいさつが届くようになります😊
+          </p>
+        </div>
+      ) : (
+        <div className="text-sm text-gray-700">
+          <p className="font-medium text-gray-900 mb-2">まずは、あいさつメッセージを作りましょう✨</p>
+          <ol className="space-y-1.5 mb-3">
+            <li className="flex gap-2">
+              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">1</span>
+              <span>下の「作成」ボタンを押して、あいさつの<strong className="text-gray-900">入口</strong>を作ります。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">2</span>
+              <span>開いた画面で、<strong className="text-gray-900">届けたいメッセージ</strong>を書きます。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">3</span>
+              <span>この画面に戻って<strong className="text-gray-900">スイッチをON</strong>にすれば完成です。</span>
+            </li>
+          </ol>
+          <button
+            type="button"
+            onClick={onCreate}
+            className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
+            style={{ backgroundColor: '#06C755' }}
+          >
+            ＋ このアカウントであいさつメッセージを作る
+          </button>
+        </div>
       )}
     </div>
   )

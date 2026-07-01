@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { Scenario, ScenarioStep, ScenarioTriggerType, MessageType, DeliveryMode } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import Header from '@/components/layout/header'
+import GuidePanel from '@/components/shared/guide-panel'
 import FlexPreviewComponent from '@/components/flex-preview'
 import ScheduleInput, {
   emptySchedule,
@@ -424,6 +425,21 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
         }
       />
 
+      <GuidePanel title="この画面の使い方（メッセージ本文を書く場所です）" className="mb-4">
+        <p className="mb-3">
+          ここは、友だちに届ける<strong className="text-gray-900">メッセージの本文を書く画面</strong>です。
+          下の「<strong className="text-gray-900">＋ ステップ追加</strong>」ボタンを押して、届けたいメッセージを入力しましょう。
+        </p>
+        <ul className="space-y-1.5 mb-3 list-disc list-inside marker:text-green-500">
+          <li>1通だけ送りたいなら、ステップを<strong className="text-gray-900">1つ</strong>作ればOKです。</li>
+          <li>「あいさつ → 翌日にもう1通」のように<strong className="text-gray-900">続けて送りたい</strong>ときは、ステップを追加していきます。</li>
+          <li>各ステップでは「<strong className="text-gray-900">いつ送るか（すぐ／◯分後）</strong>」と「<strong className="text-gray-900">何を送るか</strong>」を決められます。</li>
+        </ul>
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+          ⚠ 書き終えたら、画面上の「編集」から<strong>「有効」にチェック</strong>を入れる（またはひとつ前の画面でスイッチをON）のをお忘れなく。ONにしないとメッセージは届きません。
+        </p>
+      </GuidePanel>
+
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
@@ -711,8 +727,28 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
 
         {/* Steps list */}
         {sortedSteps.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 text-sm">
-            ステップがありません。「+ ステップ追加」から追加してください。
+          <div className="rounded-lg border border-dashed border-green-300 bg-green-50/50 px-4 py-6">
+            <p className="text-sm font-medium text-gray-900 mb-3">
+              最初のメッセージを書いてみましょう✍️
+            </p>
+            <ol className="space-y-2 text-sm text-gray-700 mb-4">
+              <li className="flex gap-2">
+                <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">1</span>
+                <span>右上の「<strong className="text-gray-900">＋ ステップ追加</strong>」ボタンを押します。</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">2</span>
+                <span>配信のタイミングは、あいさつなら<strong className="text-gray-900">「すぐ送る」</strong>のままでOKです。</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-500 text-white text-[11px] font-bold">3</span>
+                <span>「メッセージ内容」に、届けたい文章を入力して「<strong className="text-gray-900">追加</strong>」を押します。</span>
+              </li>
+            </ol>
+            <div className="rounded-md bg-white border border-gray-200 px-3 py-2">
+              <p className="text-xs text-gray-500 mb-1">こんな文章から始めてみましょう（例）：</p>
+              <p className="text-sm text-gray-800 whitespace-pre-wrap">はじめまして！友だち追加ありがとうございます😊{'\n'}これからお得な情報をお届けしますね。どうぞよろしくお願いします！</p>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
