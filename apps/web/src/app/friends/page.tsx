@@ -47,6 +47,13 @@ export default function FriendsPage() {
   const [responseFilter, setResponseFilter] = useState<ResponseFilter>('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // 顧客情報の保存トースト。テーブルは再読込で一時的にアンマウントされるため、
+  // 消えないようページ側で保持する。数秒で自動的に閉じる。
+  const [toast, setToast] = useState('')
+  const showToast = (message: string) => {
+    setToast(message)
+    window.setTimeout(() => setToast(''), 3000)
+  }
 
   const loadTags = useCallback(async () => {
     try {
@@ -219,7 +226,12 @@ export default function FriendsPage() {
           ))}
         </div>
       ) : (
-        <FriendListTable friends={friends} allTags={allTags} onRefresh={loadFriends} />
+        <FriendListTable
+          friends={friends}
+          allTags={allTags}
+          onRefresh={loadFriends}
+          onCustomerInfoSaved={showToast}
+        />
       )}
 
       {!loading && total > 0 && (
@@ -248,6 +260,15 @@ export default function FriendsPage() {
       )}
 
       <CcPromptButton prompts={ccPrompts} />
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm shadow-lg flex items-center gap-2">
+          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

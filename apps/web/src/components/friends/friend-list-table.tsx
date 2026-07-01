@@ -6,14 +6,18 @@ import type { FriendListItem } from '@/lib/api'
 import { api } from '@/lib/api'
 import FriendListRow from './friend-list-row'
 import TagBadge from './tag-badge'
+import CustomerInfoModal from './customer-info-modal'
 
 interface Props {
   friends: FriendListItem[]
   allTags: Tag[]
   onRefresh: () => void
+  /** 顧客情報の保存に成功したとき。トーストはページ側で出す
+   *  （一覧再読込でこのテーブルが一時的にアンマウントされてもトーストが消えないように）。 */
+  onCustomerInfoSaved?: (message: string) => void
 }
 
-export default function FriendListTable({ friends, allTags, onRefresh }: Props) {
+export default function FriendListTable({ friends, allTags, onRefresh, onCustomerInfoSaved }: Props) {
   // Inline tag-management expander. The row's primary click navigates to
   // /chats; tag editing stays available here as a secondary action because
   // the chats page's FriendInfoSidebar currently only displays tags (no
@@ -24,6 +28,8 @@ export default function FriendListTable({ friends, allTags, onRefresh }: Props) 
   const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // 顧客情報 (誕生日・契約更新日) 編集モーダルの対象。null で閉じている。
+  const [editingFriend, setEditingFriend] = useState<{ id: string; name: string } | null>(null)
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -70,6 +76,7 @@ export default function FriendListTable({ friends, allTags, onRefresh }: Props) 
   }
 
   return (
+    <>
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       {error && (
         <div className="px-4 py-3 bg-red-50 border-b border-red-100 text-red-700 text-sm">
@@ -102,6 +109,7 @@ export default function FriendListTable({ friends, allTags, onRefresh }: Props) 
                 <FriendListRow
                   friend={friend}
                   onTagEditClick={() => toggleExpand(friend.id)}
+                  onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName })}
                 />
 
                 {isExpanded && (
@@ -169,5 +177,18 @@ export default function FriendListTable({ friends, allTags, onRefresh }: Props) 
         </div>
       </div>
     </div>
+
+    {editingFriend && (
+      <CustomerInfoModal
+        friendId={editingFriend.id}
+        friendName={editingFriend.name}
+        onClose={() => setEditingFriend(null)}
+        onSaved={(message) => {
+          onCustomerInfoSaved?.(message)
+          onRefresh()
+        }}
+      />
+    )}
+    </>
   )
 }

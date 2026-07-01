@@ -173,6 +173,14 @@ export const api = {
       fetchApi<ApiResponse<{ id: string | null; name: string | null; isDefault: boolean }>>(
         `/api/friends/${id}/rich-menu`,
       ),
+    // 顧客情報 (誕生日・契約更新日など) は friends.metadata (JSON) に保存する。
+    // 既存 worker エンドポイント PUT /api/friends/:id/metadata は shallow merge
+    // なので、渡したキーだけが更新され、他のキーは保持される。
+    updateMetadata: (id: string, metadata: Record<string, unknown>) =>
+      fetchApi<ApiResponse<FriendWithTags>>(`/api/friends/${id}/metadata`, {
+        method: 'PUT',
+        body: JSON.stringify(metadata),
+      }),
   },
   tags: {
     list: () =>

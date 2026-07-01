@@ -11,6 +11,9 @@ interface Props {
   // to the row body — the row body navigates to /chats and we don't want
   // the tag-edit affordance to compete with that primary click target.
   onTagEditClick?: () => void
+  // Opens the 顧客情報 (誕生日・契約更新日) edit modal. Same stopPropagation
+  // treatment as onTagEditClick so it doesn't trigger the row's chat nav.
+  onEditInfoClick?: () => void
 }
 
 // Single row of the L-step style friend list. Renders 5 columns:
@@ -19,12 +22,17 @@ interface Props {
 // `/chats?friend=<id>` so the operator can read history / reply / mark as
 // resolved without leaving the list. The "タグ" button at the end of the
 // last column opens an inline tag editor (handled by the parent table).
-export default function FriendListRow({ friend, onTagEditClick }: Props) {
+export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick }: Props) {
   const router = useRouter()
   const navigateToChat = () => router.push(`/chats?friend=${friend.id}`)
   const incoming = friend.latestIncomingMessage
   const scenario = friend.activeScenario
   const isFollowing = friend.isFollowing
+  // 顧客情報 (誕生日・契約更新日) は metadata に入っている。一覧レスポンスに
+  // metadata が含まれない場合もあるので存在チェックしてから表示する。
+  const meta = (friend.metadata ?? {}) as Record<string, unknown>
+  const birthday = metaDate(meta.birthday)
+  const renewalDate = metaDate(meta.renewal_date)
 
   return (
     <div
@@ -139,15 +147,37 @@ export default function FriendListRow({ friend, onTagEditClick }: Props) {
         {friend.tags.length === 0 && !friend.firstTrackedLinkName && !friend.refCode && (
           <span className="text-[10px] text-gray-300">—</span>
         )}
-        {onTagEditClick && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onTagEditClick() }}
-            className="text-[10px] text-blue-600 hover:text-blue-800 underline mt-0.5"
-          >
-            タグ編集
-          </button>
+        {/* 顧客情報 (誕生日・契約更新日) — 登録済みなら値を表示する */}
+        {(birthday || renewalDate) && (
+          <div className="text-[10px] text-gray-500 space-y-0.5 mt-0.5">
+            {birthday && (
+              <p><span className="text-gray-400">誕生日：</span>{birthday}</p>
+            )}
+            {renewalDate && (
+              <p><span className="text-gray-400">契約更新日：</span>{renewalDate}</p>
+            )}
+          </div>
         )}
+        <div className="flex items-center gap-3 mt-0.5">
+          {onTagEditClick && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onTagEditClick() }}
+              className="text-[10px] text-blue-600 hover:text-blue-800 underline"
+            >
+              タグ編集
+            </button>
+          )}
+          {onEditInfoClick && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEditInfoClick() }}
+              className="text-[10px] text-green-700 hover:text-green-800 underline"
+            >
+              顧客情報を編集
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -168,4 +198,12 @@ function formatJstTimestamp(iso: string): string {
 // rationale — slice off everything after the date portion.
 function formatJstDate(iso: string): string {
   return iso.slice(0, 10).replace(/-/g, '/')
+}
+
+// metadata の日付値を "YYYY-MM-DD" として安全に取り出す。文字列でなければ、
+// または日付形式でなければ空文字（＝未設定）を返す。
+function metaDate(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  const head = raw.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
 }
