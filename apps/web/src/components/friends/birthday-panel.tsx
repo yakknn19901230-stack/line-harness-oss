@@ -1,12 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
 import BirthdaySendModal from './birthday-send-modal'
 
 interface Props {
-  /** /friends が既に読み込んでいる友だち（現在ページ分）。追加取得はしない。 */
-  friends: FriendListItem[]
+  /** 対象アカウント（null=全アカウント）。メインの一覧と同じスコープに合わせる。 */
+  accountId: string | null
+  /** 親で顧客情報が保存された等、パネルの再取得を促したいときに増やすキー。 */
+  refreshKey?: number
   /** 送信成功トーストはページ側で出す */
   onToast: (message: string) => void
 }
@@ -19,6 +22,11 @@ interface UpcomingBirthday {
   /** 今日から誕生日までの日数（0=今日） */
   daysUntil: number
 }
+
+// 全件取得の設定。1ページを大きめに取り、hasNextPage を辿って全ページ集める。
+// 常識的な安全上限（打ち切り）を入れて、異常に多い環境でも暴走しないようにする。
+const FETCH_PAGE_SIZE = 200
+const MAX_FRIENDS = 5000
 
 /** metadata の birthday("YYYY-MM-DD") から月・日を取り出す。妥当でなければ null。 */
 function parseMonthDay(raw: unknown): { month: number; day: number } | null {
@@ -49,9 +57,59 @@ function relativeLabel(daysUntil: number): string {
   return `あと${daysUntil}日`
 }
 
-export default function BirthdayPanel({ friends, onToast }: Props) {
+export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props) {
+  // 全友だち（誕生日判定の母集団）。パネルが自前で取得する。
+  const [friends, setFriends] = useState<FriendListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   // 誕生日を送る対象の友だち（モーダル制御）
   const [sendTarget, setSendTarget] = useState<{ id: string; name: string } | null>(null)
+
+  // 全ページをループ取得。メインの一覧のページング状態には依存しない。
+  // includeTags/includeChatStatus は付けない（誕生日判定に不要で、取得を軽くするため）。
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(false)
+
+    const fetchAll = async () => {
+      const all: FriendListItem[] = []
+      let offset = 0
+      // 無限ループ保険: MAX_FRIENDS に達したら打ち切る
+      while (all.length < MAX_FRIENDS) {
+        const res = await api.friends.list({
+          limit: FETCH_PAGE_SIZE,
+          offset: String(offset),
+          accountId: accountId || undefined,
+          includeTags: false,
+        })
+        if (!res.success) throw new Error(res.error)
+        const got = res.data.items.length
+        all.push(...res.data.items)
+        // サーバが要求未満を返しても取りこぼさないよう、実際に受け取った件数で進める。
+        // 0件が返ったら（想定外だが）無限ループを避けて打ち切る。
+        if (!res.data.hasNextPage || got === 0) break
+        offset += got
+      }
+      return all
+    }
+
+    fetchAll()
+      .then((all) => {
+        if (cancelled) return
+        setFriends(all)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accountId, refreshKey])
 
   const upcoming = useMemo<UpcomingBirthday[]>(() => {
     // Date.now 相当をレンダー時に1回だけ確定させる。
@@ -70,18 +128,37 @@ export default function BirthdayPanel({ friends, onToast }: Props) {
     return list.sort((a, b) => a.daysUntil - b.daysUntil)
   }, [friends])
 
+  // 取得失敗時はページを壊さず、小さなエラー表示にとどめる。
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <h2 className="text-sm font-semibold text-gray-800 mb-1">🎂 今週の誕生日</h2>
+        <p className="text-xs text-gray-400">誕生日の読み込みに失敗しました。時間をおいて再度お試しください。</p>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
       <div className="flex items-center gap-2 mb-3">
         <h2 className="text-sm font-semibold text-gray-800">🎂 今週の誕生日</h2>
-        {upcoming.length > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 font-medium">
-            {upcoming.length} 人
-          </span>
+        {loading ? (
+          <span
+            className="inline-block w-4 h-4 border-2 border-gray-200 border-t-green-500 rounded-full animate-spin"
+            aria-label="読み込み中"
+          />
+        ) : (
+          upcoming.length > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 font-medium">
+              {upcoming.length} 人
+            </span>
+          )
         )}
       </div>
 
-      {upcoming.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-gray-400">誕生日を確認しています…</p>
+      ) : upcoming.length === 0 ? (
         <p className="text-sm text-gray-400">今週、誕生日の友だちはいません</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">

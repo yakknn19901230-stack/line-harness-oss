@@ -55,6 +55,9 @@ export default function FriendsPage() {
     setToast(message)
     window.setTimeout(() => setToast(''), 3000)
   }
+  // 誕生日パネルは全友だちを自前取得する。顧客情報(誕生日)が保存されたら
+  // このキーを増やしてパネルに再取得を促す。
+  const [birthdayRefreshKey, setBirthdayRefreshKey] = useState(0)
 
   const loadTags = useCallback(async () => {
     try {
@@ -143,9 +146,13 @@ export default function FriendsPage() {
         description="友だちの検索や、詳細情報の確認ができます。"
       />
 
-      {/* 今週の誕生日パネル — 現在読み込み済みの友だち(＋metadata)から算出。
-          追加データ取得はしない（v1）。該当者ゼロなら静かに案内する。 */}
-      <BirthdayPanel friends={friends} onToast={showToast} />
+      {/* 今週の誕生日パネル — メインの一覧のページングに依存せず、全友だちを
+          自前取得して算出する。該当者ゼロなら静かに案内する。 */}
+      <BirthdayPanel
+        accountId={selectedAccountId}
+        refreshKey={birthdayRefreshKey}
+        onToast={showToast}
+      />
 
       {/* Search + sort bar — L-step style */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
@@ -235,7 +242,11 @@ export default function FriendsPage() {
           friends={friends}
           allTags={allTags}
           onRefresh={loadFriends}
-          onCustomerInfoSaved={showToast}
+          onCustomerInfoSaved={(message) => {
+            showToast(message)
+            // 誕生日を編集した可能性があるので、パネルの母集団を取り直す
+            setBirthdayRefreshKey((k) => k + 1)
+          }}
         />
       )}
 
