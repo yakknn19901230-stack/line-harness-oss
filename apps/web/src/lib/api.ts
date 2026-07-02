@@ -409,6 +409,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    // メール→電話の順で既存ユーザーを検索。見つからなければ worker は 404 を返すため、
+    // fetchApi が throw する点に注意（呼び出し側で try/catch し「未発見」として扱う）。
+    match: (data: { email?: string | null; phone?: string | null }) =>
+      fetchApi<ApiResponse<User>>('/api/users/match', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     update: (id: string, data: Partial<Pick<User, 'email' | 'phone' | 'externalId' | 'displayName'>>) =>
       fetchApi<ApiResponse<User>>(`/api/users/${id}`, {
         method: 'PUT',

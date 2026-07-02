@@ -34,7 +34,7 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
   // metadata が含まれない場合もあるので存在チェックしてから表示する。
   const meta = (friend.metadata ?? {}) as Record<string, unknown>
   const birthday = metaDate(meta.birthday)
-  const renewalDate = metaDate(meta.renewal_date)
+  const contracts = getContracts(meta)
 
   return (
     <div
@@ -149,14 +149,20 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
         {friend.tags.length === 0 && !friend.firstTrackedLinkName && !friend.refCode && (
           <span className="text-[10px] text-gray-300">—</span>
         )}
-        {/* 顧客情報 (誕生日・契約更新日) — 登録済みなら値を表示する */}
-        {(birthday || renewalDate) && (
+        {/* 顧客情報 (誕生日・契約) — 登録済みなら値を表示する。契約は最大3件＋他N件。 */}
+        {(birthday || contracts.length > 0) && (
           <div className="text-[10px] text-gray-500 space-y-0.5 mt-0.5">
             {birthday && (
               <p><span className="text-gray-400">誕生日：</span>{birthday}</p>
             )}
-            {renewalDate && (
-              <p><span className="text-gray-400">契約更新日：</span>{renewalDate}</p>
+            {contracts.slice(0, 3).map((c, i) => (
+              <p key={i}>
+                <span className="text-gray-400">契約：</span>
+                {c.name ? `${c.name}${c.date ? `（${c.date}）` : ''}` : c.date || '—'}
+              </p>
+            ))}
+            {contracts.length > 3 && (
+              <p className="text-gray-400">ほか{contracts.length - 3}件</p>
             )}
           </div>
         )}
@@ -217,4 +223,20 @@ function metaDate(raw: unknown): string {
   if (typeof raw !== 'string') return ''
   const head = raw.slice(0, 10)
   return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
+}
+
+// 一覧行に出す契約リスト。contracts 配列を優先し、無ければ旧 renewal_date 単一キーを
+// 1件として拾う（後方互換）。空エントリは除外。
+function getContracts(meta: Record<string, unknown>): { name: string; date: string }[] {
+  const raw = meta.contracts
+  if (Array.isArray(raw)) {
+    return raw
+      .map((c) => {
+        const obj = (c ?? {}) as Record<string, unknown>
+        return { name: typeof obj.name === 'string' ? obj.name : '', date: metaDate(obj.renewal_date) }
+      })
+      .filter((c) => c.name !== '' || c.date !== '')
+  }
+  const legacy = metaDate(meta.renewal_date)
+  return legacy ? [{ name: '', date: legacy }] : []
 }
