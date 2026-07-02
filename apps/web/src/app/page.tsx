@@ -4,7 +4,15 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
+import BirthdayPanel from '@/components/friends/birthday-panel'
 import { useAccount } from '@/contexts/account-context'
+
+// ダッシュボードの表示制御フラグ（後で戻せるように集約。false=非表示。
+// 非表示にしても各ページは URL 直打ちで開ける）。
+const SHOW_DEMO_BANNER = false
+const SHOW_AUTOMATION_CARD = false
+const SHOW_SCORING_CARD = false
+const SHOW_BAN_QUICK_ACTION = false
 
 const ccPrompts = [
   {
@@ -83,6 +91,12 @@ export default function DashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // 誕生日パネルの送信成功トースト（数秒で消える）
+  const [toast, setToast] = useState('')
+  const showToast = (message: string) => {
+    setToast(message)
+    window.setTimeout(() => setToast(''), 3000)
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -151,23 +165,30 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Demo banner */}
-      <a
-        href="https://your-worker.your-subdomain.workers.dev/auth/line?ref=dashboard"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mb-6 p-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-colors"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-gray-900">LINE で体験する</p>
-            <p className="text-xs text-gray-500 mt-0.5">友だち追加でステップ配信・フォーム・自動返信を体験</p>
+      {/* Demo banner（デモ用案内。既定で非表示。フラグで復帰可能） */}
+      {SHOW_DEMO_BANNER && (
+        <a
+          href="https://your-worker.your-subdomain.workers.dev/auth/line?ref=dashboard"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block mb-6 p-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-gray-900">LINE で体験する</p>
+              <p className="text-xs text-gray-500 mt-0.5">友だち追加でステップ配信・フォーム・自動返信を体験</p>
+            </div>
+            <span className="text-xs px-3 py-1.5 rounded-full text-white font-medium" style={{ backgroundColor: '#14283F' }}>
+              友だち追加
+            </span>
           </div>
-          <span className="text-xs px-3 py-1.5 rounded-full text-white font-medium" style={{ backgroundColor: '#14283F' }}>
-            友だち追加
-          </span>
-        </div>
-      </a>
+        </a>
+      )}
+
+      {/* 今週の誕生日（/friends の BirthdayPanel を再利用） */}
+      <div className="mb-6">
+        <BirthdayPanel accountId={selectedAccountId} onToast={showToast} />
+      </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
@@ -226,32 +247,36 @@ export default function DashboardPage() {
             </svg>
           }
         />
-        <StatCard
-          title="アクティブルール数"
-          value={stats.automationCount}
-          loading={loading}
-          href="/automations"
-          accentColor="#EF4444"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="スコアリングルール数"
-          value={stats.scoringRuleCount}
-          loading={loading}
-          href="/scoring"
-          accentColor="#14283F"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-            </svg>
-          }
-        />
+        {SHOW_AUTOMATION_CARD && (
+          <StatCard
+            title="アクティブルール数"
+            value={stats.automationCount}
+            loading={loading}
+            href="/automations"
+            accentColor="#EF4444"
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            }
+          />
+        )}
+        {SHOW_SCORING_CARD && (
+          <StatCard
+            title="スコアリングルール数"
+            value={stats.scoringRuleCount}
+            loading={loading}
+            href="/scoring"
+            accentColor="#14283F"
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            }
+          />
+        )}
       </div>
 
       {/* Quick links */}
@@ -322,25 +347,36 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link
-            href="/health"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-red-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-red-700 transition-colors">BAN検知</p>
-              <p className="text-xs text-gray-400">アカウント健康度ダッシュボード</p>
-            </div>
-          </Link>
+          {SHOW_BAN_QUICK_ACTION && (
+            <Link
+              href="/health"
+              className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors group"
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-red-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 group-hover:text-red-700 transition-colors">BAN検知</p>
+                <p className="text-xs text-gray-400">アカウント健康度ダッシュボード</p>
+              </div>
+            </Link>
+          )}
         </div>
       </div>
 
       <CcPromptButton prompts={ccPrompts} />
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm shadow-lg flex items-center gap-2">
+          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

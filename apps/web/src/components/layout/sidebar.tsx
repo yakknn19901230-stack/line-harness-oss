@@ -36,6 +36,8 @@ const menuSections = [
   },
   {
     label: '分析',
+    // 折りたたみ対象（初期は閉じる）。保険営業が毎日使わない分析系をまとめて畳む。
+    collapsible: true,
     items: [
       { href: '/inflow-links', label: 'リファラルリンク', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
       { href: '/conversions', label: 'CV計測', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
@@ -199,6 +201,10 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const [staffName, setStaffName] = useState<string | null>(null)
   const [staffRole, setStaffRole] = useState<string | null>(null)
+  // 折りたたみセクションの開閉（ラベルをキーに）。初期は全て閉じる（記憶しない）。
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  const toggleSection = (label: string) =>
+    setOpenSections((s) => ({ ...s, [label]: !s[label] }))
 
   useEffect(() => {
     setStaffName(localStorage.getItem('lh_staff_name'))
@@ -254,14 +260,35 @@ export default function Sidebar() {
 
       {/* ナビゲーション */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {menuSections.map((section, si) => (
+        {menuSections.map((section, si) => {
+          const collapsible = 'collapsible' in section && section.collapsible
+          const sectionOpen = section.label ? !!openSections[section.label] : true
+          const showItems = !collapsible || sectionOpen
+          return (
           <div key={si}>
             {section.label && (
-              <div className="pt-5 pb-2 px-3">
-                <p className="text-[11px] font-semibold text-cream/50 uppercase tracking-wider">{section.label}</p>
-              </div>
+              collapsible ? (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.label as string)}
+                  aria-expanded={sectionOpen}
+                  className="w-full pt-5 pb-2 px-3 flex items-center gap-1.5 group"
+                >
+                  <span className="text-[11px] font-semibold text-cream/50 group-hover:text-cream/80 uppercase tracking-wider">{section.label}</span>
+                  <svg
+                    className={`w-3 h-3 text-cream/50 transition-transform ${sectionOpen ? 'rotate-90' : ''}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ) : (
+                <div className="pt-5 pb-2 px-3">
+                  <p className="text-[11px] font-semibold text-cream/50 uppercase tracking-wider">{section.label}</p>
+                </div>
+              )
             )}
-            {section.items.filter((item) => {
+            {showItems && section.items.filter((item) => {
               if (item.href === '/staff' && staffRole !== 'owner') return false
               if (item.href === '/accounts' && staffRole === 'staff') return false
               return true
@@ -296,7 +323,8 @@ export default function Sidebar() {
               )
             })}
           </div>
-        ))}
+          )
+        })}
       </nav>
 
       {/* フッター */}
