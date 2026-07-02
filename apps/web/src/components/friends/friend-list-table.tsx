@@ -7,6 +7,8 @@ import { api } from '@/lib/api'
 import FriendListRow from './friend-list-row'
 import TagBadge from './tag-badge'
 import CustomerInfoModal from './customer-info-modal'
+import MessageSendModal from './message-send-modal'
+import { DEFAULT_SCENE_ID } from './message-scenes'
 
 interface Props {
   friends: FriendListItem[]
@@ -15,9 +17,11 @@ interface Props {
   /** 顧客情報の保存に成功したとき。トーストはページ側で出す
    *  （一覧再読込でこのテーブルが一時的にアンマウントされてもトーストが消えないように）。 */
   onCustomerInfoSaved?: (message: string) => void
+  /** メッセージ送信成功時のトースト（再読込を伴わない）。ページ側で出す。 */
+  onMessageSent?: (message: string) => void
 }
 
-export default function FriendListTable({ friends, allTags, onRefresh, onCustomerInfoSaved }: Props) {
+export default function FriendListTable({ friends, allTags, onRefresh, onCustomerInfoSaved, onMessageSent }: Props) {
   // Inline tag-management expander. The row's primary click navigates to
   // /chats; tag editing stays available here as a secondary action because
   // the chats page's FriendInfoSidebar currently only displays tags (no
@@ -30,6 +34,8 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
   const [error, setError] = useState('')
   // 顧客情報 (誕生日・契約更新日) 編集モーダルの対象。null で閉じている。
   const [editingFriend, setEditingFriend] = useState<{ id: string; name: string } | null>(null)
+  // 場面別メッセージ送信モーダルの対象。null で閉じている。
+  const [messageFriend, setMessageFriend] = useState<{ id: string; name: string } | null>(null)
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -110,6 +116,7 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
                   friend={friend}
                   onTagEditClick={() => toggleExpand(friend.id)}
                   onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName })}
+                  onSendMessageClick={() => setMessageFriend({ id: friend.id, name: friend.displayName })}
                 />
 
                 {isExpanded && (
@@ -186,6 +193,19 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
         onSaved={(message) => {
           onCustomerInfoSaved?.(message)
           onRefresh()
+        }}
+      />
+    )}
+
+    {messageFriend && (
+      <MessageSendModal
+        friendId={messageFriend.id}
+        friendName={messageFriend.name}
+        initialSceneId={DEFAULT_SCENE_ID}
+        onClose={() => setMessageFriend(null)}
+        onSent={(message) => {
+          onMessageSent?.(message)
+          setMessageFriend(null)
         }}
       />
     )}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
-import BirthdaySendModal from './birthday-send-modal'
+import MessageSendModal from './message-send-modal'
 
 interface Props {
   /** 対象アカウント（null=全アカウント）。メインの一覧と同じスコープに合わせる。 */
@@ -194,9 +194,10 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
       )}
 
       {sendTarget && (
-        <BirthdaySendModal
+        <MessageSendModal
           friendId={sendTarget.id}
           friendName={sendTarget.name}
+          initialSceneId="birthday"
           onClose={() => setSendTarget(null)}
           onSent={(message) => {
             onToast(message)

@@ -14,6 +14,8 @@ interface Props {
   // Opens the 顧客情報 (誕生日・契約更新日) edit modal. Same stopPropagation
   // treatment as onTagEditClick so it doesn't trigger the row's chat nav.
   onEditInfoClick?: () => void
+  // Opens the 場面別メッセージ送信モーダル. Same stopPropagation treatment.
+  onSendMessageClick?: () => void
 }
 
 // Single row of the L-step style friend list. Renders 5 columns:
@@ -22,7 +24,7 @@ interface Props {
 // `/chats?friend=<id>` so the operator can read history / reply / mark as
 // resolved without leaving the list. The "タグ" button at the end of the
 // last column opens an inline tag editor (handled by the parent table).
-export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick }: Props) {
+export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick, onSendMessageClick }: Props) {
   const router = useRouter()
   const navigateToChat = () => router.push(`/chats?friend=${friend.id}`)
   const incoming = friend.latestIncomingMessage
@@ -159,6 +161,15 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick 
           </div>
         )}
         <div className="flex items-center gap-3 mt-0.5">
+          {onSendMessageClick && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onSendMessageClick() }}
+              className="text-[10px] text-green-700 hover:text-green-800 underline font-medium"
+            >
+              メッセージを送る
+            </button>
+          )}
           {onTagEditClick && (
             <button
               type="button"

@@ -247,6 +247,7 @@ export default function FriendsPage() {
             // 誕生日を編集した可能性があるので、パネルの母集団を取り直す
             setBirthdayRefreshKey((k) => k + 1)
           }}
+          onMessageSent={showToast}
         />
       )}
 
