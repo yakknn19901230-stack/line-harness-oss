@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { api } from '@/lib/api'
+import { useMemo, useState } from 'react'
 import type { FriendListItem } from '@/lib/api'
+import { useAllFriends } from '@/hooks/use-all-friends'
 import MessageSendModal from './message-send-modal'
+import PanelShell from './panel-shell'
 
 interface Props {
   /** 対象アカウント（null=全アカウント）。メインの一覧と同じスコープに合わせる。 */
@@ -23,11 +24,6 @@ interface UpcomingBirthday {
   daysUntil: number
 }
 
-// 全件取得の設定。1ページを大きめに取り、hasNextPage を辿って全ページ集める。
-// 常識的な安全上限（打ち切り）を入れて、異常に多い環境でも暴走しないようにする。
-const FETCH_PAGE_SIZE = 200
-const MAX_FRIENDS = 5000
-
 /** metadata の birthday("YYYY-MM-DD") から月・日を取り出す。妥当でなければ null。 */
 function parseMonthDay(raw: unknown): { month: number; day: number } | null {
   if (typeof raw !== 'string') return null
@@ -45,7 +41,6 @@ function daysUntilBirthday(month: number, day: number, today: Date): number {
   let next = new Date(today.getFullYear(), month - 1, day)
   let diff = Math.round((next.getTime() - t0.getTime()) / 86_400_000)
   if (diff < 0) {
-    // 今年の誕生日は過ぎている → 来年の同月日で測る（12月→1月の年またぎもこれで正しく出る）
     next = new Date(today.getFullYear() + 1, month - 1, day)
     diff = Math.round((next.getTime() - t0.getTime()) / 86_400_000)
   }
@@ -58,61 +53,10 @@ function relativeLabel(daysUntil: number): string {
 }
 
 export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props) {
-  // 全友だち（誕生日判定の母集団）。パネルが自前で取得する。
-  const [friends, setFriends] = useState<FriendListItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-  // 誕生日を送る対象の友だち（モーダル制御）
+  const { friends, loading, error } = useAllFriends(accountId, refreshKey)
   const [sendTarget, setSendTarget] = useState<{ id: string; name: string } | null>(null)
 
-  // 全ページをループ取得。メインの一覧のページング状態には依存しない。
-  // includeTags/includeChatStatus は付けない（誕生日判定に不要で、取得を軽くするため）。
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(false)
-
-    const fetchAll = async () => {
-      const all: FriendListItem[] = []
-      let offset = 0
-      // 無限ループ保険: MAX_FRIENDS に達したら打ち切る
-      while (all.length < MAX_FRIENDS) {
-        const res = await api.friends.list({
-          limit: FETCH_PAGE_SIZE,
-          offset: String(offset),
-          accountId: accountId || undefined,
-          includeTags: false,
-        })
-        if (!res.success) throw new Error(res.error)
-        const got = res.data.items.length
-        all.push(...res.data.items)
-        // サーバが要求未満を返しても取りこぼさないよう、実際に受け取った件数で進める。
-        // 0件が返ったら（想定外だが）無限ループを避けて打ち切る。
-        if (!res.data.hasNextPage || got === 0) break
-        offset += got
-      }
-      return all
-    }
-
-    fetchAll()
-      .then((all) => {
-        if (cancelled) return
-        setFriends(all)
-      })
-      .catch(() => {
-        if (!cancelled) setError(true)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [accountId, refreshKey])
-
   const upcoming = useMemo<UpcomingBirthday[]>(() => {
-    // Date.now 相当をレンダー時に1回だけ確定させる。
     const today = new Date()
     const list: UpcomingBirthday[] = []
     for (const f of friends) {
@@ -124,42 +68,34 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
         list.push({ id: f.id, name: f.displayName, month: md.month, day: md.day, daysUntil })
       }
     }
-    // 近い順（今日→7日後）に並べる
     return list.sort((a, b) => a.daysUntil - b.daysUntil)
   }, [friends])
 
-  // 取得失敗時はページを壊さず、小さなエラー表示にとどめる。
+  const todayCount = upcoming.filter((b) => b.daysUntil === 0).length
+
   if (error) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
         <h2 className="text-sm font-semibold text-gray-800 mb-1">🎂 今週の誕生日</h2>
-        <p className="text-xs text-gray-400">誕生日の読み込みに失敗しました。時間をおいて再度お試しください。</p>
+        <p className="text-xs text-gray-500">誕生日の読み込みに失敗しました。時間をおいて再度お試しください。</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg border-2 border-accent/50 p-4 mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-semibold text-gray-800">🎂 今週の誕生日</h2>
-        {loading ? (
-          <span
-            className="inline-block w-4 h-4 border-2 border-gray-200 border-t-brand rounded-full animate-spin"
-            aria-label="読み込み中"
-          />
-        ) : (
-          upcoming.length > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-brand font-semibold">
-              {upcoming.length} 人
-            </span>
-          )
-        )}
-      </div>
-
+    <PanelShell
+      title="🎂 今週の誕生日"
+      loading={loading}
+      count={upcoming.length}
+      unit="人"
+      highlight={todayCount > 0 ? `今日${todayCount}人` : null}
+      initialOpenMobile={todayCount > 0}
+      borderClass="border-2 border-accent/50"
+    >
       {loading ? (
-        <p className="text-sm text-gray-400">誕生日を確認しています…</p>
+        <p className="text-sm text-gray-500">誕生日を確認しています…</p>
       ) : upcoming.length === 0 ? (
-        <p className="text-sm text-gray-400">今週、誕生日の友だちはいません</p>
+        <p className="text-sm text-gray-500">今週、誕生日の友だちはいません</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {upcoming.map((b) => (
@@ -169,7 +105,7 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{b.name || '名前なし'}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-600 mt-0.5">
                   {b.month}月{b.day}日
                   <span
                     className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
@@ -205,6 +141,6 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
           }}
         />
       )}
-    </div>
+    </PanelShell>
   )
 }

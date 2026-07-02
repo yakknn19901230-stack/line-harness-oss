@@ -86,9 +86,9 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
         )}
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{friend.displayName}</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">登録: {formatJstDate(friend.createdAt)}</p>
+          <p className="text-[10px] text-gray-500 mt-0.5">登録: {formatJstDate(friend.createdAt)}</p>
           {!isFollowing && (
-            <p className="text-[10px] text-red-400 mt-0.5">ブロック / 退会</p>
+            <p className="text-[10px] text-red-500 mt-0.5">ブロック / 退会</p>
           )}
         </div>
       </div>
@@ -151,18 +151,18 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
         )}
         {/* 顧客情報 (誕生日・契約) — 登録済みなら値を表示する。契約は最大3件＋他N件。 */}
         {(birthday || contracts.length > 0) && (
-          <div className="text-[10px] text-gray-500 space-y-0.5 mt-0.5">
+          <div className="text-[11px] text-gray-700 space-y-0.5 mt-0.5">
             {birthday && (
-              <p><span className="text-gray-400">誕生日：</span>{birthday}</p>
+              <p><span className="text-gray-500">誕生日：</span>{toSlashDate(birthday)}</p>
             )}
             {contracts.slice(0, 3).map((c, i) => (
               <p key={i}>
-                <span className="text-gray-400">契約：</span>
-                {c.name ? `${c.name}${c.date ? `（${c.date}）` : ''}` : c.date || '—'}
+                <span className="text-gray-500">契約：</span>
+                {c.name ? `${c.name}${c.date ? `（${toSlashDate(c.date)}）` : ''}` : toSlashDate(c.date) || '—'}
               </p>
             ))}
             {contracts.length > 3 && (
-              <p className="text-gray-400">ほか{contracts.length - 3}件</p>
+              <p className="text-gray-500">ほか{contracts.length - 3}件</p>
             )}
           </div>
         )}
@@ -215,6 +215,12 @@ function formatJstTimestamp(iso: string): string {
 // rationale — slice off everything after the date portion.
 function formatJstDate(iso: string): string {
   return iso.slice(0, 10).replace(/-/g, '/')
+}
+
+// 表示用: "YYYY-MM-DD" を "YYYY/MM/DD" に統一（既にスラッシュ/空はそのまま）。
+// 保存形式(YYYY-MM-DD)は変えず、画面表示だけを統一する。
+export function toSlashDate(s: string): string {
+  return s ? s.replace(/-/g, '/') : s
 }
 
 // metadata の日付値を "YYYY-MM-DD" として安全に取り出す。文字列でなければ、

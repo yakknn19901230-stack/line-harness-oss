@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import {
   MESSAGE_SCENES,
@@ -8,6 +8,18 @@ import {
   findScene,
   renderSceneMessage,
 } from './message-scenes'
+
+// セッション内の送信記録（当日のみ有効・ページ再読込で消える。二重送信抑止用）。
+// サーバー側の送信履歴は作らない方針のため、フロントの簡易メモに留める。
+const sentLog: Record<string, { date: string; time: string }> = {}
+function todayKey(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+}
+function hhmm(): string {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 interface Props {
   friendId: string
@@ -39,6 +51,17 @@ export default function MessageSendModal({
   const [edited, setEdited] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  // 2段階送信: 1回目のクリックで確定待ちにし、2回目で実送信。
+  const [confirming, setConfirming] = useState(false)
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // 当日この友だちに送信済みなら、その時刻（二重送信の注意書き用）
+  const alreadySentTime = sentLog[friendId]?.date === todayKey() ? sentLog[friendId].time : null
+
+  const cancelConfirm = () => {
+    setConfirming(false)
+    if (confirmTimer.current) { clearTimeout(confirmTimer.current); confirmTimer.current = null }
+  }
 
   // 背景スクロールを止める（他モーダルと同じ作法）
   useEffect(() => {
@@ -46,6 +69,7 @@ export default function MessageSendModal({
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = prev
+      if (confirmTimer.current) clearTimeout(confirmTimer.current)
     }
   }, [])
 
@@ -61,6 +85,7 @@ export default function MessageSendModal({
     setSelectedSceneId(scene.id)
     setEdited(false)
     setError('')
+    cancelConfirm()
   }
 
   const handleSend = async (e: React.FormEvent) => {
@@ -69,11 +94,20 @@ export default function MessageSendModal({
       setError('メッセージを入力してください')
       return
     }
+    // 1回目: 確定待ちに切り替える（数秒放置で自動的に戻す）。実送信は2回目。
+    if (!confirming) {
+      setError('')
+      setConfirming(true)
+      confirmTimer.current = setTimeout(() => setConfirming(false), 4000)
+      return
+    }
+    cancelConfirm()
     setSending(true)
     setError('')
     try {
       const res = await api.chats.send(friendId, { content: message.trim() })
       if (res.success) {
+        sentLog[friendId] = { date: todayKey(), time: hhmm() }
         onSent('送信しました')
         onClose()
       } else {
@@ -106,6 +140,12 @@ export default function MessageSendModal({
         <form onSubmit={handleSend} className="flex-1 flex flex-col min-h-0">
           {/* 本文エリア（スクロール可能） */}
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {/* 当日すでに送っている場合の注意（二重送信の抑止） */}
+            {alreadySentTime && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded text-amber-800 text-xs">
+                ⚠ この方には <strong>今日 {alreadySentTime}</strong> に送信済みです。重複にご注意ください。
+              </div>
+            )}
             {/* 場面チップ */}
             <div>
               <p className="text-xs font-medium text-gray-600 mb-1.5">場面を選ぶ</p>
@@ -144,6 +184,7 @@ export default function MessageSendModal({
                 onChange={(e) => {
                   setMessage(e.target.value)
                   setEdited(true)
+                  cancelConfirm()
                 }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
               />
@@ -171,10 +212,17 @@ export default function MessageSendModal({
             <button
               type="submit"
               disabled={sending}
-              className="flex-1 sm:flex-none min-h-[44px] px-6 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-opacity"
-              style={{ backgroundColor: '#14283F' }}
+              aria-live="polite"
+              className={`flex-1 min-h-[44px] px-6 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors ${
+                confirming ? 'text-brand border-2 border-accent' : 'text-white border-2 border-transparent'
+              }`}
+              style={confirming ? { backgroundColor: '#E8B44A' } : { backgroundColor: '#14283F' }}
             >
-              {sending ? '送信中…' : '送信'}
+              {sending
+                ? '送信中…'
+                : confirming
+                  ? `${friendName || 'この方'}さんに送信する（もう一度）`
+                  : '送信'}
             </button>
           </div>
         </form>

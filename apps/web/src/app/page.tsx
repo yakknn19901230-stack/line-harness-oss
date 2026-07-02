@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import BirthdayPanel from '@/components/friends/birthday-panel'
+import RenewalPanel from '@/components/friends/renewal-panel'
 import { useAccount } from '@/contexts/account-context'
 
 // ダッシュボードの表示制御フラグ（後で戻せるように集約。false=非表示。
@@ -185,10 +186,9 @@ export default function DashboardPage() {
         </a>
       )}
 
-      {/* 今週の誕生日（/friends の BirthdayPanel を再利用） */}
-      <div className="mb-6">
-        <BirthdayPanel accountId={selectedAccountId} onToast={showToast} />
-      </div>
+      {/* 今日の保全: 今週の誕生日＋契約更新が近い顧客（/friends と同じパネルを再利用） */}
+      <BirthdayPanel accountId={selectedAccountId} onToast={showToast} />
+      <RenewalPanel accountId={selectedAccountId} onToast={showToast} />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">

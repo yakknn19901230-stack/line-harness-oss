@@ -7,6 +7,7 @@ import type { FriendListItem } from '@/lib/api'
 import Header from '@/components/layout/header'
 import FriendListTable from '@/components/friends/friend-list-table'
 import BirthdayPanel from '@/components/friends/birthday-panel'
+import RenewalPanel from '@/components/friends/renewal-panel'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
 
@@ -149,6 +150,13 @@ export default function FriendsPage() {
       {/* 今週の誕生日パネル — メインの一覧のページングに依存せず、全友だちを
           自前取得して算出する。該当者ゼロなら静かに案内する。 */}
       <BirthdayPanel
+        accountId={selectedAccountId}
+        refreshKey={birthdayRefreshKey}
+        onToast={showToast}
+      />
+
+      {/* 契約更新が近い顧客（誕生日パネルと同じ全件取得・判定パターン） */}
+      <RenewalPanel
         accountId={selectedAccountId}
         refreshKey={birthdayRefreshKey}
         onToast={showToast}

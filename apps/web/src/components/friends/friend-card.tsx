@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import type { FriendListItem } from '@/lib/api'
 import TagBadge from './tag-badge'
-import { metaDate, getContracts } from './friend-list-row'
+import { metaDate, getContracts, toSlashDate } from './friend-list-row'
 
 interface Props {
   friend: FriendListItem
@@ -69,15 +69,15 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
 
         {/* 誕生日・契約 */}
         {(birthday || contracts.length > 0) && (
-          <div className="text-xs text-gray-600 mt-2 space-y-0.5">
-            {birthday && <p><span className="text-gray-400">誕生日：</span>{birthday}</p>}
+          <div className="text-xs text-gray-700 mt-2 space-y-0.5">
+            {birthday && <p><span className="text-gray-500">誕生日：</span>{toSlashDate(birthday)}</p>}
             {contracts.slice(0, 3).map((c, i) => (
               <p key={i}>
-                <span className="text-gray-400">契約：</span>
-                {c.name ? `${c.name}${c.date ? `（${c.date}）` : ''}` : c.date || '—'}
+                <span className="text-gray-500">契約：</span>
+                {c.name ? `${c.name}${c.date ? `（${toSlashDate(c.date)}）` : ''}` : toSlashDate(c.date) || '—'}
               </p>
             ))}
-            {contracts.length > 3 && <p className="text-gray-400">ほか{contracts.length - 3}件</p>}
+            {contracts.length > 3 && <p className="text-gray-500">ほか{contracts.length - 3}件</p>}
           </div>
         )}
 

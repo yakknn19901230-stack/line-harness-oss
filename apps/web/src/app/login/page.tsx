@@ -84,9 +84,12 @@ export default function LoginPage() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="APIキーを入力"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               autoFocus
             />
+            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+              導入時にお渡ししたAPIキーを入力してください。不明な場合は担当者にお問い合わせください。
+            </p>
           </div>
 
           {error && (
