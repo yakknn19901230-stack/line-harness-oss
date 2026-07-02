@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 import Link from 'next/link'
 import type { Scenario, ScenarioStep, ScenarioTriggerType, MessageType, DeliveryMode } from '@line-crm/shared'
@@ -15,6 +15,7 @@ import ScheduleInput, {
   type ScheduleValue,
 } from '@/components/scenarios/schedule-input'
 import BulkPreviewModal from '@/components/scenarios/bulk-preview-modal'
+import InsertNameButton from '@/components/common/insert-name-button'
 
 type ScenarioWithSteps = Scenario & { steps: ScenarioStep[] }
 
@@ -152,6 +153,7 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
   const [stepForm, setStepForm] = useState<StepFormState>(() => emptyStepForm(1))
   const [stepSaving, setStepSaving] = useState(false)
   const [stepError, setStepError] = useState('')
+  const stepContentRef = useRef<HTMLTextAreaElement>(null)
 
   const [previewOpen, setPreviewOpen] = useState(false)
 
@@ -672,12 +674,21 @@ export default function ScenarioDetailClient({ scenarioId }: { scenarioId: strin
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">メッセージ内容 <span className="text-red-500">*</span></label>
                     <textarea
+                      ref={stepContentRef}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                       rows={4}
                       placeholder="メッセージ内容を入力..."
                       value={stepForm.messageContent}
                       onChange={(e) => setStepForm({ ...stepForm, messageContent: e.target.value })}
                     />
+                    {/* シナリオ配信は送信時に expandVariables で {{name}} を置換する経路。 */}
+                    {stepForm.messageType === 'text' && (
+                      <InsertNameButton
+                        textareaRef={stepContentRef}
+                        value={stepForm.messageContent}
+                        onChange={(next) => setStepForm({ ...stepForm, messageContent: next })}
+                      />
+                    )}
                   </div>
                 </>
               )}

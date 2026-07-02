@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import Header from '@/components/layout/header'
 import FlexPreviewComponent from '@/components/flex-preview'
 import CcPromptButton from '@/components/cc-prompt-button'
 import ImageUploader from '@/components/shared/image-uploader'
+import InsertNameButton from '@/components/common/insert-name-button'
 
 interface Template {
   id: string
@@ -78,6 +79,7 @@ export default function TemplatesPage() {
   const [form, setForm] = useState({ name: '', category: 'general', messageType: 'text', messageContent: '' })
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const formContentRef = useRef<HTMLTextAreaElement>(null)
 
   // Drawer
   const [drawerId, setDrawerId] = useState<string | null>(null)
@@ -326,13 +328,24 @@ export default function TemplatesPage() {
                   label="テンプレート画像"
                 />
               ) : (
-                <textarea
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
-                  rows={form.messageType === 'flex' ? 10 : 4}
-                  placeholder={form.messageType === 'flex' ? '{"type":"bubble","body":...}' : 'メッセージ内容'}
-                  value={form.messageContent}
-                  onChange={(e) => setForm({ ...form, messageContent: e.target.value })}
-                />
+                <>
+                  <textarea
+                    ref={formContentRef}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                    rows={form.messageType === 'flex' ? 10 : 4}
+                    placeholder={form.messageType === 'flex' ? '{"type":"bubble","body":...}' : 'メッセージ内容'}
+                    value={form.messageContent}
+                    onChange={(e) => setForm({ ...form, messageContent: e.target.value })}
+                  />
+                  {/* テンプレートはシナリオ配信経由で送られ、送信時に {{name}} が置換される。 */}
+                  {form.messageType === 'text' && (
+                    <InsertNameButton
+                      textareaRef={formContentRef}
+                      value={form.messageContent}
+                      onChange={(next) => setForm({ ...form, messageContent: next })}
+                    />
+                  )}
+                </>
               )}
             </div>
 
