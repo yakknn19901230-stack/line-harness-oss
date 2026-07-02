@@ -114,7 +114,7 @@ export default function MenuStaffMatrix() {
             // 「保存して再取得」のショートサーキットを防ぎ、ユーザーが再読み込みする導線へ。
             disabled={saving || !selectedAccountId || loading || Boolean(error)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             {saving ? '保存中…' : '保存'}
           </button>

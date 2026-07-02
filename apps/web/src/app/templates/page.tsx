@@ -223,7 +223,7 @@ export default function TemplatesPage() {
           <button
             onClick={() => setShowCreate(true)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             + 新規テンプレート
           </button>
@@ -251,7 +251,7 @@ export default function TemplatesPage() {
             className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
               typeFilter === key ? 'text-white' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
             }`}
-            style={typeFilter === key ? { backgroundColor: '#06C755' } : undefined}
+            style={typeFilter === key ? { backgroundColor: '#14283F' } : undefined}
           >
             {label}
           </button>
@@ -343,7 +343,7 @@ export default function TemplatesPage() {
                 onClick={handleCreate}
                 disabled={saving}
                 className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: '#06C755' }}
+                style={{ backgroundColor: '#14283F' }}
               >
                 {saving ? '作成中...' : '作成'}
               </button>
@@ -537,7 +537,7 @@ export default function TemplatesPage() {
                       onClick={handleSaveEdit}
                       disabled={savingEdit}
                       className="px-3 py-1.5 text-xs font-medium text-white rounded-md disabled:opacity-50"
-                      style={{ backgroundColor: '#06C755' }}
+                      style={{ backgroundColor: '#14283F' }}
                     >
                       {savingEdit ? '保存中...' : '保存'}
                     </button>

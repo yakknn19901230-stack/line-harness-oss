@@ -66,14 +66,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#06C755' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#14283F' }}>
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg mx-auto mb-3" style={{ backgroundColor: '#06C755' }}>
-            H
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg mx-auto mb-3" style={{ backgroundColor: '#E8B44A', color: '#14283F' }}>
+            保
           </div>
-          <h1 className="text-xl font-bold text-gray-900">L Harness</h1>
-          <p className="text-sm text-gray-500 mt-1">管理画面にログイン</p>
+          <h1 className="text-xl font-bold text-gray-900">保全くん</h1>
+          <p className="text-sm text-gray-500 mt-1">保険営業の顧客管理 — ログイン</p>
         </div>
 
         <form onSubmit={handleLogin}>
@@ -97,7 +97,7 @@ export default function LoginPage() {
             type="submit"
             disabled={loading || !apiKey}
             className="w-full py-3 text-white font-medium rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             {loading ? 'ログイン中...' : 'ログイン'}
           </button>

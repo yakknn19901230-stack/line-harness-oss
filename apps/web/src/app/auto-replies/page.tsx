@@ -162,7 +162,7 @@ export default function AutoRepliesPage() {
               isActive: true,
             })}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             + 新規ルール
           </button>

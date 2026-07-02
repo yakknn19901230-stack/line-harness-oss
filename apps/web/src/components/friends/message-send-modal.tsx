@@ -121,7 +121,7 @@ export default function MessageSendModal({
                         ? 'text-white border-transparent'
                         : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
                     }`}
-                    style={active ? { backgroundColor: '#06C755' } : undefined}
+                    style={active ? { backgroundColor: '#14283F' } : undefined}
                   >
                     {scene.label}
                   </button>
@@ -168,7 +168,7 @@ export default function MessageSendModal({
               type="submit"
               disabled={sending}
               className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-opacity"
-              style={{ backgroundColor: '#06C755' }}
+              style={{ backgroundColor: '#14283F' }}
             >
               {sending ? '送信中…' : '送信'}
             </button>

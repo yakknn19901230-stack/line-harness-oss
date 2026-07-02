@@ -212,7 +212,7 @@ export default function StaffShiftsPage() {
                   onClick={generate}
                   disabled={generating}
                   className="ml-auto px-4 py-1.5 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                  style={{ backgroundColor: '#06C755' }}
+                  style={{ backgroundColor: '#14283F' }}
                 >
                   {generating ? '生成中…' : '生成'}
                 </button>

@@ -450,7 +450,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
           onClick={() => setShowConfirm(true)}
           disabled={sending}
           className="w-full px-4 py-3 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
-          style={{ backgroundColor: '#06C755' }}
+          style={{ backgroundColor: '#14283F' }}
         >
           {sending ? '送信中...' : `この配信を送信する${targetCount != null ? ` (${targetCount.toLocaleString('ja-JP')}人)` : ''}`}
         </button>

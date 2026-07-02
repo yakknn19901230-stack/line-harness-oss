@@ -1,1 +1,45 @@
 @import "tailwindcss";
+
+/*
+ * 保全くん ブランドテーマ（表示専用）。
+ * クラス名やコード上の識別子は変えず、Tailwind の色トークンの「値」だけを差し替える。
+ *
+ * - green-* スケールを濃紺(#14283F系)に丸ごと再マップして、既存コードに散在する
+ *   緑ユーティリティ(bg/text/border-green-*)を一括で濃紺化する（緑を全廃）。
+ *   明度の段階は元のスケールと対応させ、薄い背景(50-200)・読みやすい文字(600-800)を維持。
+ * - brand / accent / cream を追加し、サイドバー等の主要箇所で使う。
+ */
+@theme {
+  /* メイン: 濃紺 */
+  --color-brand: #14283f;
+  --color-brand-light: #24405c;
+  /* アクセント: 琥珀（注目の一点だけに使う） */
+  --color-accent: #e8b44a;
+  --color-accent-dark: #d59f2f;
+  /* 濃紺の上に載せるオフホワイト */
+  --color-cream: #f5f1e8;
+
+  /* 既存の green-* を濃紺ラダーに再マップ（＝画面上の緑を濃紺へ） */
+  --color-green-50: #eef2f7;
+  --color-green-100: #dde5f0;
+  --color-green-200: #c2d0e3;
+  --color-green-300: #9db2cf;
+  --color-green-400: #6e8bb2;
+  --color-green-500: #47688f;
+  --color-green-600: #2f4f75;
+  --color-green-700: #223d5c;
+  --color-green-800: #1a3049;
+  --color-green-900: #14283f;
+
+  /* emerald-* も緑系なので同じ濃紺ラダーへ（chats/inbox/users 等の残り緑を一掃） */
+  --color-emerald-50: #eef2f7;
+  --color-emerald-100: #dde5f0;
+  --color-emerald-200: #c2d0e3;
+  --color-emerald-300: #9db2cf;
+  --color-emerald-400: #6e8bb2;
+  --color-emerald-500: #47688f;
+  --color-emerald-600: #2f4f75;
+  --color-emerald-700: #223d5c;
+  --color-emerald-800: #1a3049;
+  --color-emerald-900: #14283f;
+}

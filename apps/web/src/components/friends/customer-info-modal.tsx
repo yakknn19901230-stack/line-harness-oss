@@ -339,7 +339,7 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
               type="submit"
               disabled={saving || loading}
               className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-opacity"
-              style={{ backgroundColor: '#06C755' }}
+              style={{ backgroundColor: '#14283F' }}
             >
               {saving ? '保存中…' : '保存する'}
             </button>

@@ -153,7 +153,7 @@ export default function AccountsPage() {
                 }
               }}
               className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-              style={{ backgroundColor: '#06C755' }}
+              style={{ backgroundColor: '#14283F' }}
             >
               {showCreate ? 'キャンセル' : '+ アカウント追加'}
             </button>
@@ -218,7 +218,7 @@ export default function AccountsPage() {
             type="submit"
             disabled={submitting}
             className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             {submitting ? '登録中...' : '登録'}
           </button>
@@ -247,7 +247,7 @@ export default function AccountsPage() {
                   ) : (
                     <div
                       className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                      style={{ backgroundColor: account.isActive ? '#06C755' : '#9CA3AF' }}
+                      style={{ backgroundColor: account.isActive ? '#14283F' : '#9CA3AF' }}
                     >
                       {account.displayName?.charAt(0) || 'L'}
                     </div>

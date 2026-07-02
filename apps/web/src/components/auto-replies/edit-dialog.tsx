@@ -126,7 +126,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
                   key={mt}
                   onClick={() => setMatchType(mt)}
                   className={`px-3 py-1.5 text-xs rounded-md ${matchType === mt ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                  style={matchType === mt ? { backgroundColor: '#06C755' } : undefined}
+                  style={matchType === mt ? { backgroundColor: '#14283F' } : undefined}
                 >
                   {mt === 'exact' ? '完全一致' : '包含'}
                 </button>
@@ -147,7 +147,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
                   key={key}
                   onClick={() => setMode(key)}
                   className={`px-3 py-1.5 text-xs rounded-md ${mode === key ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                  style={mode === key ? { backgroundColor: '#06C755' } : undefined}
+                  style={mode === key ? { backgroundColor: '#14283F' } : undefined}
                 >
                   {label}
                 </button>
@@ -251,7 +251,7 @@ export default function EditDialog({ draft, templates, onClose, onSaved }: Props
             onClick={handleSave}
             disabled={saving}
             className="px-3 py-1.5 text-xs font-medium text-white rounded-md disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             {saving ? '保存中...' : '保存'}
           </button>

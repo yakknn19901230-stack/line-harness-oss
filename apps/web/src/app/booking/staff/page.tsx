@@ -73,7 +73,7 @@ export default function BookingStaffPage() {
             onClick={() => setEditing(EMPTY)}
             disabled={!selectedAccountId}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             + 新規スタッフ
           </button>
@@ -290,7 +290,7 @@ function Modal({
             onClick={submit}
             disabled={saving}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             {saving ? '保存中…' : '保存'}
           </button>

@@ -281,7 +281,7 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
             onClick={handleSend}
             disabled={!message.trim() || sending}
             className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             {sending ? '...' : '送信'}
           </button>
@@ -985,7 +985,7 @@ export default function ChatsPage() {
                                   ? 'rounded-tl-2xl rounded-tr-md rounded-bl-2xl rounded-br-2xl text-white'
                                   : 'rounded-tl-md rounded-tr-2xl rounded-bl-2xl rounded-br-2xl bg-white text-gray-900'
                               }`}
-                              style={isOutgoing ? { backgroundColor: '#06C755' } : undefined}
+                              style={isOutgoing ? { backgroundColor: '#14283F' } : undefined}
                             >
                               {bubbleContent}
                             </div>
@@ -1101,7 +1101,7 @@ export default function ChatsPage() {
                     onClick={handleSendMessage}
                     disabled={sending || (!messageContent.trim() && !pendingImage)}
                     className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: '#06C755' }}
+                    style={{ backgroundColor: '#14283F' }}
                   >
                     {sending ? '送信中...' : '送信'}
                   </button>

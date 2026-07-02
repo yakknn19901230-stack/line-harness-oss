@@ -113,7 +113,7 @@ export default function BookingsPage() {
             className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
               tab === key ? 'text-white' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
             }`}
-            style={tab === key ? { backgroundColor: '#06C755' } : undefined}
+            style={tab === key ? { backgroundColor: '#14283F' } : undefined}
           >
             {label}
           </button>
@@ -191,7 +191,7 @@ function ActionButtons({
         <button
           onClick={() => onAction('approve')}
           className="px-3 py-1 text-xs font-medium text-white rounded-md transition-opacity hover:opacity-90"
-          style={{ backgroundColor: '#06C755' }}
+          style={{ backgroundColor: '#14283F' }}
         >
           承認
         </button>

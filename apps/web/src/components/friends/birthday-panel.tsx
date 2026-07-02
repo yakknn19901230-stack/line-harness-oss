@@ -139,17 +139,17 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+    <div className="bg-white rounded-lg border-2 border-accent/50 p-4 mb-4">
       <div className="flex items-center gap-2 mb-3">
         <h2 className="text-sm font-semibold text-gray-800">🎂 今週の誕生日</h2>
         {loading ? (
           <span
-            className="inline-block w-4 h-4 border-2 border-gray-200 border-t-green-500 rounded-full animate-spin"
+            className="inline-block w-4 h-4 border-2 border-gray-200 border-t-brand rounded-full animate-spin"
             aria-label="読み込み中"
           />
         ) : (
           upcoming.length > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 font-medium">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-brand font-semibold">
               {upcoming.length} 人
             </span>
           )
@@ -165,7 +165,7 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
           {upcoming.map((b) => (
             <div
               key={b.id}
-              className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-pink-50/40 to-white"
+              className="border border-accent/40 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-accent/10 to-white"
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{b.name || '名前なし'}</p>
@@ -173,7 +173,7 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
                   {b.month}月{b.day}日
                   <span
                     className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${
-                      b.daysUntil === 0 ? 'bg-pink-100 text-pink-700' : 'bg-gray-100 text-gray-600'
+                      b.daysUntil === 0 ? 'bg-accent/25 text-brand font-semibold' : 'bg-gray-100 text-gray-600'
                     }`}
                   >
                     {relativeLabel(b.daysUntil)}
@@ -184,7 +184,7 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
                 type="button"
                 onClick={() => setSendTarget({ id: b.id, name: b.name })}
                 className="mt-auto px-3 py-2 min-h-[40px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-                style={{ backgroundColor: '#06C755' }}
+                style={{ backgroundColor: '#14283F' }}
               >
                 お祝いメッセージを送る
               </button>

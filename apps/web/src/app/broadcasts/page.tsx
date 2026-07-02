@@ -156,7 +156,7 @@ function BroadcastList() {
           <button
             onClick={() => setShowCreate(true)}
             className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             + 新規配信
           </button>
@@ -195,7 +195,7 @@ function BroadcastList() {
                   ? 'border-green-500 text-gray-900'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
-              style={activeTab === tab.id ? { borderColor: '#06C755' } : undefined}
+              style={activeTab === tab.id ? { borderColor: '#14283F' } : undefined}
             >
               {tab.label}
               <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gray-100 text-xs text-gray-600 min-w-[20px]">

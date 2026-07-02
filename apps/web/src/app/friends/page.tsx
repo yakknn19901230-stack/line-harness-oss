@@ -175,7 +175,7 @@ export default function FriendsPage() {
           <button
             type="submit"
             className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#06C755' }}
+            style={{ backgroundColor: '#14283F' }}
           >
             検索
           </button>

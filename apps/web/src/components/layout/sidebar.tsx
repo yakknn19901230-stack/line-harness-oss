@@ -91,7 +91,7 @@ function AccountAvatar({ account, size = 32 }: { account: AccountWithStats; size
   return (
     <div
       className="rounded-full flex items-center justify-center text-white font-bold shrink-0"
-      style={{ width: size, height: size, backgroundColor: '#06C755', fontSize: size * 0.4 }}
+      style={{ width: size, height: size, backgroundColor: '#14283F', fontSize: size * 0.4 }}
     >
       {displayName.charAt(0)}
     </div>
@@ -116,14 +116,14 @@ function AccountSwitcher() {
   const displayName = selectedAccount?.displayName || selectedAccount?.name || ''
 
   return (
-    <div ref={ref} className="px-3 py-3 border-b border-gray-200">
+    <div ref={ref} className="px-3 py-3 border-b border-white/10">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-white/10 transition-colors"
       >
         {selectedAccount && <AccountAvatar account={selectedAccount} size={28} />}
         <div className="flex-1 text-left min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">
+          <p className="text-sm font-medium text-cream truncate">
             <span className="flex items-center gap-1.5">
               {countryFlag(selectedAccount?.country) && (
                 <span className="text-base leading-none">{countryFlag(selectedAccount?.country)}</span>
@@ -133,7 +133,7 @@ function AccountSwitcher() {
           </p>
         </div>
         <svg
-          className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-cream/60 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -237,14 +237,14 @@ export default function Sidebar() {
   const sidebarContent = (
     <>
       {/* ロゴ */}
-      <div className="px-6 py-5 border-b border-gray-200">
+      <div className="px-6 py-5 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ backgroundColor: '#06C755' }}>
-            H
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm" style={{ backgroundColor: '#E8B44A', color: '#14283F' }}>
+            保
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-900 leading-tight">L Harness</p>
-            <p className="text-xs text-gray-400">管理画面</p>
+            <p className="text-sm font-bold text-cream leading-tight">保全くん</p>
+            <p className="text-xs text-cream/60">保険営業の顧客管理</p>
           </div>
         </div>
       </div>
@@ -258,7 +258,7 @@ export default function Sidebar() {
           <div key={si}>
             {section.label && (
               <div className="pt-5 pb-2 px-3">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{section.label}</p>
+                <p className="text-[11px] font-semibold text-cream/50 uppercase tracking-wider">{section.label}</p>
               </div>
             )}
             {section.items.filter((item) => {
@@ -274,12 +274,12 @@ export default function Sidebar() {
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     active
-                      ? 'text-white'
+                      ? isDanger ? 'text-white' : 'text-brand'
                       : isDanger
-                        ? 'text-red-500 hover:bg-red-50'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'text-red-300 hover:bg-white/10'
+                        : 'text-cream/70 hover:bg-white/10 hover:text-cream'
                   }`}
-                  style={active ? { backgroundColor: isDanger ? '#EF4444' : '#06C755' } : {}}
+                  style={active ? { backgroundColor: isDanger ? '#EF4444' : '#E8B44A' } : {}}
                 >
                   <NavIcon d={item.icon} />
                   <span className="flex-1">{item.label}</span>
@@ -300,10 +300,10 @@ export default function Sidebar() {
       </nav>
 
       {/* フッター */}
-      <div className="border-t border-gray-200">
+      <div className="border-t border-white/10">
         {staffName && (
-          <div className="px-3 py-2 text-xs text-gray-500 border-t border-gray-100">
-            <div className="font-medium text-gray-700">{staffName}</div>
+          <div className="px-3 py-2 text-xs text-cream/60 border-t border-white/10">
+            <div className="font-medium text-cream">{staffName}</div>
             <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mt-0.5 ${
               staffRole === 'owner' ? 'bg-yellow-100 text-yellow-800' :
               staffRole === 'admin' ? 'bg-blue-100 text-blue-800' :
@@ -315,8 +315,8 @@ export default function Sidebar() {
         )}
         <div className="px-6 py-4 space-y-3">
         <div className="space-y-0.5">
-          <p className="text-xs text-gray-400">L Harness v{appVersion}</p>
-          <p className="text-[10px] text-gray-400 font-mono break-all">
+          <p className="text-xs text-cream/50">保全くん v{appVersion}</p>
+          <p className="text-[10px] text-cream/50 font-mono break-all">
             build {appCommitSha}{appBuildDate ? ` · ${appBuildDate}` : ''}
           </p>
         </div>
@@ -339,7 +339,7 @@ export default function Sidebar() {
             localStorage.removeItem('lh_staff_role')
             window.location.href = '/login'
           }}
-          className="flex items-center gap-2 text-xs text-gray-400 hover:text-red-500 transition-colors"
+          className="flex items-center gap-2 text-xs text-cream/60 hover:text-red-300 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -368,8 +368,8 @@ export default function Sidebar() {
           </svg>
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: '#06C755' }}>H</div>
-          <p className="text-sm font-bold text-gray-900">L Harness</p>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs" style={{ backgroundColor: '#E8B44A', color: '#14283F' }}>保</div>
+          <p className="text-sm font-bold text-gray-900">保全くん</p>
         </div>
       </div>
 
@@ -377,10 +377,10 @@ export default function Sidebar() {
       {isOpen && <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setIsOpen(false)} />}
 
       {/* モバイル: スライドインサイドバー */}
-      <aside className={`lg:hidden fixed top-0 left-0 z-50 w-72 bg-white flex flex-col h-screen transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`lg:hidden fixed top-0 left-0 z-50 w-72 bg-brand flex flex-col h-screen transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="absolute top-4 right-4">
-          <button onClick={() => setIsOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100" aria-label="閉じる">
-            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button onClick={() => setIsOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/10" aria-label="閉じる">
+            <svg className="w-5 h-5 text-cream/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -389,7 +389,7 @@ export default function Sidebar() {
       </aside>
 
       {/* デスクトップ: 常時表示 */}
-      <aside className="hidden lg:flex w-64 bg-white border-r border-gray-200 flex-col h-screen sticky top-0">
+      <aside className="hidden lg:flex w-64 bg-brand border-r border-white/10 flex-col h-screen sticky top-0">
         {sidebarContent}
       </aside>
     </>
