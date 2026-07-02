@@ -214,22 +214,23 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-start sm:items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-lg my-8"
+        className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col max-h-[92vh] sm:max-h-[88vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ヘッダー */}
-        <div className="px-5 py-4 border-b border-gray-100">
+        {/* ヘッダー（固定） */}
+        <div className="shrink-0 px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">顧客情報を編集</h2>
           <p className="text-xs text-gray-500 mt-0.5 truncate">
             {friendName || '名前なし'} さんの情報
           </p>
         </div>
 
-        <form onSubmit={handleSave} className="px-5 py-4 space-y-6">
+        <form onSubmit={handleSave} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
           {loading ? (
             <div className="py-8 text-center text-sm text-gray-400">読み込み中…</div>
           ) : (
@@ -264,31 +265,33 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
                 {contracts.length === 0 ? (
                   <p className="text-xs text-gray-400 py-1">まだ契約は登録されていません。</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3 sm:space-y-2">
                     {contracts.map((c, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
+                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 sm:pb-0 border-b sm:border-b-0 border-gray-100 last:border-b-0 last:pb-0">
                         <input
                           type="text"
                           value={c.name}
                           onChange={(e) => updateContract(idx, { name: e.target.value })}
                           placeholder="例: ソニー生命の医療 / 自動車"
-                          className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full sm:flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
-                        <DateInput
-                          value={c.renewal_date}
-                          onChange={(v) => updateContract(idx, { renewal_date: v })}
-                          ariaLabel="更新日"
-                          invalid={attempted && c.renewal_date.trim() !== '' && !displayToStored(c.renewal_date).ok}
-                          className="w-[9.5rem] shrink-0"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeContract(idx)}
-                          aria-label="この契約を削除"
-                          className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          ✕
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <DateInput
+                            value={c.renewal_date}
+                            onChange={(v) => updateContract(idx, { renewal_date: v })}
+                            ariaLabel="更新日"
+                            invalid={attempted && c.renewal_date.trim() !== '' && !displayToStored(c.renewal_date).ok}
+                            className="flex-1 sm:flex-none sm:w-[9.5rem]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeContract(idx)}
+                            aria-label="この契約を削除"
+                            className="shrink-0 w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -297,9 +300,9 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
                 <button
                   type="button"
                   onClick={addContract}
-                  className="text-xs font-medium text-green-700 hover:text-green-800 flex items-center gap-1"
+                  className="min-h-[44px] px-1 text-sm font-medium text-green-700 hover:text-green-800 flex items-center gap-1"
                 >
-                  <span className="text-sm leading-none">＋</span>契約を追加
+                  <span className="text-lg leading-none">＋</span>契約を追加
                 </button>
               </section>
 
@@ -319,7 +322,7 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="例: 090-1234-5678"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
                 <div>
@@ -332,7 +335,7 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="例: tanaka@example.com"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
               </section>
@@ -344,19 +347,21 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
               {error}
             </div>
           )}
+          </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+          {/* フッター（下部固定） */}
+          <div className="shrink-0 flex gap-2 px-5 py-3 border-t border-gray-100 bg-white">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+              className="flex-1 sm:flex-none min-h-[44px] px-4 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
             >
               キャンセル
             </button>
             <button
               type="submit"
               disabled={saving || loading}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-opacity"
+              className="flex-1 sm:flex-none min-h-[44px] px-6 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-opacity"
               style={{ backgroundColor: '#14283F' }}
             >
               {saving ? '保存中…' : '保存する'}

@@ -219,7 +219,7 @@ function formatJstDate(iso: string): string {
 
 // metadata の日付値を "YYYY-MM-DD" として安全に取り出す。文字列でなければ、
 // または日付形式でなければ空文字（＝未設定）を返す。
-function metaDate(raw: unknown): string {
+export function metaDate(raw: unknown): string {
   if (typeof raw !== 'string') return ''
   const head = raw.slice(0, 10)
   return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
@@ -227,7 +227,7 @@ function metaDate(raw: unknown): string {
 
 // 一覧行に出す契約リスト。contracts 配列を優先し、無ければ旧 renewal_date 単一キーを
 // 1件として拾う（後方互換）。空エントリは除外。
-function getContracts(meta: Record<string, unknown>): { name: string; date: string }[] {
+export function getContracts(meta: Record<string, unknown>): { name: string; date: string }[] {
   const raw = meta.contracts
   if (Array.isArray(raw)) {
     return raw

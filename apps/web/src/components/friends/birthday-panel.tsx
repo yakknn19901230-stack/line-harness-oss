@@ -183,7 +183,7 @@ export default function BirthdayPanel({ accountId, refreshKey, onToast }: Props)
               <button
                 type="button"
                 onClick={() => setSendTarget({ id: b.id, name: b.name })}
-                className="mt-auto px-3 py-2 min-h-[40px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
+                className="mt-auto px-3 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
                 style={{ backgroundColor: '#14283F' }}
               >
                 お祝いメッセージを送る
