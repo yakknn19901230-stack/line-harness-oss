@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import DateInput, { storedToDisplay, displayToStored } from './date-input'
 
 interface Props {
   friendId: string
@@ -31,7 +32,7 @@ function asString(raw: unknown): string {
   return typeof raw === 'string' ? raw : ''
 }
 
-/** metadata から契約リストを組み立てる。
+/** metadata から契約リストを組み立てる（renewal_date は表示用 YYYY/MM/DD にして返す）。
  *  - contracts 配列があればそれを使う。
  *  - 無くて旧 renewal_date（単一キー）があれば、契約1行目（名前空）として移行表示する。 */
 function loadContracts(meta: Record<string, unknown>): ContractRow[] {
@@ -40,13 +41,13 @@ function loadContracts(meta: Record<string, unknown>): ContractRow[] {
     return raw
       .map((c) => {
         const obj = (c ?? {}) as Record<string, unknown>
-        return { name: asString(obj.name), renewal_date: toDateInputValue(obj.renewal_date) }
+        return { name: asString(obj.name), renewal_date: storedToDisplay(toDateInputValue(obj.renewal_date)) }
       })
       // 完全に空の行は読み込み時に落とす
       .filter((c) => c.name.trim() !== '' || c.renewal_date !== '')
   }
   const legacy = toDateInputValue(meta.renewal_date)
-  if (legacy) return [{ name: '', renewal_date: legacy }]
+  if (legacy) return [{ name: '', renewal_date: storedToDisplay(legacy) }]
   return []
 }
 
@@ -61,10 +62,12 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const [birthday, setBirthday] = useState('')
+  const [birthday, setBirthday] = useState('') // 表示用 YYYY/MM/DD
   const [contracts, setContracts] = useState<ContractRow[]>([])
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  // 保存を試みたか。日付の赤枠（不正時）を出すのは保存試行後だけにする。
+  const [attempted, setAttempted] = useState(false)
   // 開いた時点で friend が既にリンク済みの user_id（あれば）。二重リンクを避けるため。
   const [linkedUserId, setLinkedUserId] = useState<string | null>(null)
 
@@ -88,7 +91,7 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
         if (cancelled) return
         if (res.success && res.data) {
           const meta = (res.data.metadata ?? {}) as Record<string, unknown>
-          setBirthday(toDateInputValue(meta.birthday))
+          setBirthday(storedToDisplay(toDateInputValue(meta.birthday)))
           setContracts(loadContracts(meta))
           setPhone(asString(meta.phone))
           setEmail(asString(meta.email))
@@ -154,12 +157,27 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    setAttempted(true)
+
+    // 日付の検証（表示 YYYY/MM/DD → 保存 YYYY-MM-DD）。空は許容、不完全/不正はその場でエラー。
+    const bd = displayToStored(birthday)
+    if (!bd.ok) {
+      setError('誕生日は YYYY/MM/DD の形式で正しく入力してください（例: 1985/07/02）')
+      return
+    }
+    const contractResults = contracts.map((c) => ({ name: c.name.trim(), date: displayToStored(c.renewal_date) }))
+    const badIdx = contractResults.findIndex((cr) => !cr.date.ok)
+    if (badIdx >= 0) {
+      setError(`契約 ${badIdx + 1} 件目の更新日を YYYY/MM/DD の形式で正しく入力してください（例: 2026/09/01）`)
+      return
+    }
+
     setSaving(true)
     setError('')
     try {
-      // 契約: 完全に空の行は落として配列化。更新日は入っていれば YYYY-MM-DD。
-      const contractsPayload = contracts
-        .map((c) => ({ name: c.name.trim(), renewal_date: c.renewal_date || '' }))
+      // 契約: 完全に空の行は落として配列化。更新日は YYYY-MM-DD で保存。
+      const contractsPayload = contractResults
+        .map((cr) => ({ name: cr.name, renewal_date: cr.date.value }))
         .filter((c) => c.name !== '' || c.renewal_date !== '')
 
       const emailVal = email.trim()
@@ -167,7 +185,7 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
 
       // 1) metadata 保存。旧 renewal_date（単一キー）は contracts へ移行済みなので削除(null)。
       const res = await api.friends.updateMetadata(friendId, {
-        birthday: birthday || null,
+        birthday: bd.value || null,
         contracts: contractsPayload,
         renewal_date: null,
         phone: phoneVal || null,
@@ -223,15 +241,15 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
                   <label htmlFor="ci-birthday" className="block text-sm font-medium text-gray-800 mb-1">
                     誕生日
                   </label>
-                  <input
+                  <DateInput
                     id="ci-birthday"
-                    type="date"
                     value={birthday}
-                    onChange={(e) => setBirthday(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    onChange={setBirthday}
+                    invalid={attempted && birthday.trim() !== '' && !displayToStored(birthday).ok}
+                    className="w-full"
                   />
                   <p className="text-[11px] text-gray-400 mt-1">
-                    例: 1980-05-15 ／ この日にお祝いメッセージを自動で送る土台になります。
+                    例: 1985/07/02 ／ 数字を続けて入力すると自動で「/」が入ります。この日にお祝いメッセージを自動で送る土台になります。
                   </p>
                 </div>
               </section>
@@ -256,12 +274,12 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
                           placeholder="例: ソニー生命の医療 / 自動車"
                           className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                         />
-                        <input
-                          type="date"
+                        <DateInput
                           value={c.renewal_date}
-                          onChange={(e) => updateContract(idx, { renewal_date: e.target.value })}
-                          aria-label="更新日"
-                          className="w-[9.5rem] shrink-0 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          onChange={(v) => updateContract(idx, { renewal_date: v })}
+                          ariaLabel="更新日"
+                          invalid={attempted && c.renewal_date.trim() !== '' && !displayToStored(c.renewal_date).ok}
+                          className="w-[9.5rem] shrink-0"
                         />
                         <button
                           type="button"
