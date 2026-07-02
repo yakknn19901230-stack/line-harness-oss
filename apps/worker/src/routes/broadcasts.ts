@@ -8,7 +8,7 @@ import {
 } from '@line-crm/db';
 import type { Broadcast as DbBroadcast, BroadcastMessageType, BroadcastTargetType } from '@line-crm/db';
 import { LineClient } from '@line-crm/line-sdk';
-import { processBroadcastSend, buildMessage, processQueuedBroadcasts } from '../services/broadcast.js';
+import { processBroadcastSend, buildMessage, processQueuedBroadcasts, sendTagBroadcastPerFriend, hasExpandableVariables, VARIABLE_BROADCAST_MAX_RECIPIENTS } from '../services/broadcast.js';
 import { computeDedupBroadcastPreview } from '../services/dedup-broadcast.js';
 import { processSegmentSend } from '../services/segment-send.js';
 import type { SegmentCondition } from '../services/segment-query.js';
@@ -431,6 +431,16 @@ broadcasts.post('/api/broadcasts/:id/send', async (c) => {
       return c.json({ success: false, error: 'Broadcast not found' }, 404);
     }
 
+    // 変数（{{name}} 等）はタグ指定の個別送信レーンでのみ効く。全体配信 (all) は
+    // 宛先リストが無く、複数アカウント配信 (dedup) は multicast 前提のため v1 では
+    // 非対応。ここでガードしないと本文の {{name}} が生のまま届いてしまう。
+    if (hasExpandableVariables(existing.message_content) && existing.target_type !== 'tag') {
+      return c.json({
+        success: false,
+        error: '変数（{{name}}等）はタグ指定の配信でのみ使えます。全体配信・複数アカウント配信では差し込みができません。タグを指定して配信してください。',
+      }, 400);
+    }
+
     // multi-account-dedup は常にキュー方式 — Worker の30秒制限を超えるため
     if (existing.target_type === 'multi-account-dedup') {
       // Always queue — never run inline. The executor walks per-account multicast
@@ -498,6 +508,67 @@ broadcasts.post('/api/broadcasts/:id/send', async (c) => {
       const { getFriendsByTag } = await import('@line-crm/db');
       const friends = await getFriendsByTag(c.env.DB, existing.target_tag_id);
       const followingCount = friends.filter(f => f.is_following).length;
+
+      // 変数レーン: 本文に友だちごと変数を含む tag 配信は「1人ずつ push」で送る。
+      // v1 は 500 人上限。超過時は「今の人数」を含む案内を返す。
+      if (hasExpandableVariables(existing.message_content)) {
+        if (followingCount > VARIABLE_BROADCAST_MAX_RECIPIENTS) {
+          return c.json({
+            success: false,
+            error: `対象が${followingCount}人います。変数（{{name}}等）を含む配信は現在${VARIABLE_BROADCAST_MAX_RECIPIENTS}人までです。タグを分割して送信してください。`,
+          }, 400);
+        }
+
+        // 送信元アカウントのトークンを解決 (即時送信パスと同じ手順)。
+        let varAccessToken = c.env.LINE_CHANNEL_ACCESS_TOKEN;
+        const varAccountId = (existing as unknown as Record<string, unknown>).line_account_id;
+        if (varAccountId) {
+          const account = await getLineAccountById(c.env.DB, varAccountId as string);
+          if (account) varAccessToken = account.channel_access_token;
+        }
+        const varClient = new LineClient(varAccessToken);
+
+        // atomic lock: draft/scheduled のときだけ sending に遷移。
+        const varLock = await c.env.DB.prepare(
+          `UPDATE broadcasts SET status = 'sending' WHERE id = ? AND status IN ('draft','scheduled')`,
+        ).bind(id).run();
+        if (!varLock.meta.changes) {
+          return c.json({ success: false, error: 'Broadcast is already sent or sending' }, 409);
+        }
+
+        // per-friend push は逐次で時間がかかるため background 実行 (202 返却)。
+        // dedup 即時パスと同じ waitUntil 作法。失敗時は draft に戻して再送可能に。
+        const runVariableLane = () => sendTagBroadcastPerFriend(c.env.DB, varClient, id, c.env.WORKER_URL);
+        try {
+          const ctx = c.executionCtx as ExecutionContext;
+          ctx.waitUntil(
+            runVariableLane().catch(async (err) => {
+              console.error('[variable-broadcast] background send failed:', err);
+              await c.env.DB.prepare(
+                `UPDATE broadcasts SET status = 'draft' WHERE id = ? AND status = 'sending'`,
+              ).bind(id).run().catch(() => {});
+            }),
+          );
+        } catch (kickErr) {
+          // ExecutionContext 未利用環境 (test 等) — inline 実行にフォールバック。
+          console.warn('[variable-broadcast] waitUntil unavailable, running inline:', kickErr);
+          try {
+            await runVariableLane();
+          } catch (err) {
+            await c.env.DB.prepare(
+              `UPDATE broadcasts SET status = 'draft' WHERE id = ? AND status = 'sending'`,
+            ).bind(id).run();
+            throw err;
+          }
+        }
+
+        return c.json({
+          success: true,
+          data: { id, status: 'sending', totalCount: followingCount },
+          queued: true,
+          message: 'Variable broadcast queued for per-friend delivery',
+        }, 202);
+      }
 
       if (followingCount > 500) {
         // Atomic lock: status='draft'|'scheduled' のときだけ status='sending' に遷移

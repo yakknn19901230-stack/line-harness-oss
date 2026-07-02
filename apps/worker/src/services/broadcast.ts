@@ -14,8 +14,40 @@ import type { Broadcast } from '@line-crm/db';
 import type { LineClient } from '@line-crm/line-sdk';
 import type { Message } from '@line-crm/line-sdk';
 import { calculateStaggerDelay, sleep, addMessageVariation } from './stealth.js';
+import { expandVariables } from './step-delivery.js';
+import { renderMessageContent } from './render-message.js';
 
 const MULTICAST_BATCH_SIZE = 500;
+
+// 変数（{{name}} 等）を含む一斉配信は「友だちごとに1通ずつ push」する個別
+// 送信レーンで捌く（multicast は N人・1本文なので名前差し込みが原理的に不可）。
+// 初期版はこの人数を上限にする。理由:
+//  - wall time: 逐次 push は 1通 ~100-300ms。500通で数十秒。waitUntil 背景実行
+//    前提でも、これ以上は cron 分割 (v2) が必要。
+//  - LINE Messaging API のレート制限に対する安全マージン。
+// なお Cloudflare の subrequest 上限は 2026-02 仕様変更でデフォルト 10,000
+// (limits.subrequests で最大 1000万まで引上げ可) となり、旧 1000 制約は解消済み。
+// v2 で上限を引き上げる余地はあるが、上記 wall time / LINE レート観点から初期版は
+// 500 を維持する。
+export const VARIABLE_BROADCAST_MAX_RECIPIENTS = 500;
+
+// 展開可能な「友だちごと」変数を本文が含むか判定する。
+// expandVariables が実際に置換するトークンのみを対象にする。
+// {{liff_id}} は per-account 置換 (renderMessageContent が処理) なので含めない
+// — これを変数扱いすると liff_id だけの配信まで個別送信レーンに落ちてしまう。
+export function hasExpandableVariables(content: string): boolean {
+  if (!content) return false;
+  return (
+    /\{\{name\}\}/.test(content) ||
+    /\{\{uid\}\}/.test(content) ||
+    /\{\{friend_id\}\}/.test(content) ||
+    /\{\{ref\}\}/.test(content) ||
+    /\{\{#if_ref\}\}/.test(content) ||
+    /\{\{metadata\.[^}]+\}\}/.test(content) ||
+    /\{\{#if_metadata\.[^}]+\}\}/.test(content) ||
+    /\{\{auth_url:[^}]+\}\}/.test(content)
+  );
+}
 
 export async function processBroadcastSend(
   db: D1Database,
@@ -29,6 +61,19 @@ export async function processBroadcastSend(
   const broadcast = await getBroadcastById(db, broadcastId);
   if (!broadcast) {
     throw new Error(`Broadcast ${broadcastId} not found`);
+  }
+
+  // 変数レーン: 本文に {{name}} 等の友だちごと変数を含む tag 配信は、multicast の
+  // 代わりに「友だちごとに expandVariables → push」する個別送信で捌く。これで
+  // 名前差し込みが効く。即時 (route) / 予約 (processScheduledBroadcasts) 双方が
+  // この processBroadcastSend を通るので、ここ 1 箇所で両経路をカバーする。
+  // all / multi-account-dedup は変数非対応 (route 側で 400 ガード) なので tag のみ。
+  if (
+    broadcast.target_type === 'tag' &&
+    broadcast.target_tag_id &&
+    hasExpandableVariables(broadcast.message_content)
+  ) {
+    return await sendTagBroadcastPerFriend(db, lineClient, broadcastId, workerUrl);
   }
 
   // Auto-wrap URLs with tracking links (text with URLs → Flex with button)
@@ -136,6 +181,110 @@ export async function processBroadcastSend(
     await updateBroadcastStatus(db, broadcastId, 'sent', { totalCount, successCount });
   } catch (err) {
     // On failure, reset to draft so it can be retried
+    await updateBroadcastStatus(db, broadcastId, 'draft');
+    throw err;
+  }
+
+  return (await getBroadcastById(db, broadcastId))!;
+}
+
+/**
+ * 変数つき tag 配信を「友だちごとに1通ずつ push」で送る個別送信レーン。
+ *
+ * multicast (N人・1本文) では名前差し込みが原理的にできないため、
+ * シナリオ配信 (step-delivery) と同じ expandVariables → pushMessage を
+ * 友だち単位で回す。processBroadcastSend の tag 分岐から委譲される。
+ *
+ * 初期版の制約 (意図的):
+ *  - 対象は target_type='tag' のみ (all/dedup は非対応)。
+ *  - 対象 following が VARIABLE_BROADCAST_MAX_RECIPIENTS を超えたら throw
+ *    (route 側は事前に人数入りの 400 を返す。ここは予約経由など route を
+ *     通らない場合の最終防衛線)。
+ *  - metadata は friend 自身の metadata 列のみ使用 (getFriendsByTag の
+ *    SELECT f.* に含まれる)。複数リンクレコード横断の merged metadata は
+ *    v1 では行わない (per-friend の追加 DB 照会を避け、送信を軽量に保つ)。
+ */
+export async function sendTagBroadcastPerFriend(
+  db: D1Database,
+  lineClient: LineClient,
+  broadcastId: string,
+  workerUrl?: string,
+): Promise<Broadcast> {
+  await updateBroadcastStatus(db, broadcastId, 'sending');
+
+  const broadcast = await getBroadcastById(db, broadcastId);
+  if (!broadcast) {
+    throw new Error(`Broadcast ${broadcastId} not found`);
+  }
+  if (broadcast.target_type !== 'tag' || !broadcast.target_tag_id) {
+    throw new Error('sendTagBroadcastPerFriend requires target_type=tag with target_tag_id');
+  }
+
+  try {
+    const friends = await getFriendsByTag(db, broadcast.target_tag_id);
+    const following = friends.filter((f) => f.is_following);
+
+    if (following.length > VARIABLE_BROADCAST_MAX_RECIPIENTS) {
+      throw new Error(
+        `VARIABLE_BROADCAST_LIMIT: ${following.length} recipients exceeds ${VARIABLE_BROADCAST_MAX_RECIPIENTS}`,
+      );
+    }
+
+    // 送信元アカウントの liff_id を 1 回だけ解決 (per-friend の追加照会を避ける)。
+    // multicast 経路と揃え、{{liff_id}} は per-account で置換する。
+    const broadcastAccountId = (broadcast as unknown as Record<string, unknown>).line_account_id as string | null;
+    let liffId: string | null = null;
+    if (broadcastAccountId) {
+      const { getLineAccountById } = await import('@line-crm/db');
+      const acct = await getLineAccountById(db, broadcastAccountId);
+      liffId = (acct as unknown as { liff_id?: string | null } | null)?.liff_id ?? null;
+    }
+
+    const altText = (broadcast as unknown as Record<string, unknown>).alt_text as string | undefined;
+    const now = jstNow();
+    let successCount = 0;
+    const logStmts: D1PreparedStatement[] = [];
+
+    for (const friend of following) {
+      // 友だちごとに変数展開 (own metadata のみ)。{{liff_id}} は expandVariables
+      // の対象外なので残り、renderMessageContent で per-account 置換する。
+      const expanded = expandVariables(
+        broadcast.message_content,
+        friend as unknown as Parameters<typeof expandVariables>[1],
+        workerUrl,
+      );
+      const content = broadcastAccountId ? renderMessageContent(expanded, liffId) : expanded;
+      const message = buildMessage(broadcast.message_type, content, altText || undefined);
+
+      try {
+        await lineClient.pushMessage(friend.line_user_id, [message]);
+        successCount++;
+        // 送信できた分だけログ化 (multicast 経路と同一スキーマ)。本文は「展開後」を
+        // 記録する (実際に届いた内容と一致させる)。
+        logStmts.push(
+          db.prepare(
+            `INSERT INTO messages_log (id, friend_id, direction, message_type, content, broadcast_id, scenario_step_id, source, line_account_id, created_at)
+             VALUES (?, ?, 'outgoing', ?, ?, ?, NULL, 'broadcast', ?, ?)`,
+          ).bind(crypto.randomUUID(), friend.id, broadcast.message_type, content, broadcastId, broadcastAccountId, now),
+        );
+      } catch (err) {
+        console.error(`Per-friend broadcast push failed for friend ${friend.id}:`, err);
+        // 次の友だちへ継続。失敗分はログしない (multicast 経路と同じ扱い)。
+      }
+    }
+
+    // ログはまとめて INSERT (1件ずつ書くと write が増えるため 100 件ずつ batch)。
+    for (let i = 0; i < logStmts.length; i += 100) {
+      await db.batch(logStmts.slice(i, i + 100));
+    }
+
+    await createBroadcastInsight(db, broadcast.id);
+    await updateBroadcastStatus(db, broadcastId, 'sent', {
+      totalCount: following.length,
+      successCount,
+    });
+  } catch (err) {
+    // 失敗時は draft に戻して再送可能にする (multicast 経路と同じ復旧方針)。
     await updateBroadcastStatus(db, broadcastId, 'draft');
     throw err;
   }
