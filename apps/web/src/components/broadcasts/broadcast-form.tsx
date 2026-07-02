@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Tag } from '@line-crm/shared'
 import { api, eventsApi, type ApiBroadcast, type EventListItem } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import FlexPreviewComponent from '@/components/flex-preview'
 import ImageUploader from '@/components/shared/image-uploader'
 import MultiAccountDedupSection from './multi-account-dedup-section'
+import InsertNameButton from '@/components/common/insert-name-button'
 
 interface BroadcastFormProps {
   tags: Tag[]
@@ -58,6 +59,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSave = async () => {
     if (!form.title.trim()) { setError('配信タイトルを入力してください'); return }
@@ -221,6 +223,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             </div>
           )}
           <textarea
+            ref={bodyRef}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
             rows={form.messageType === 'flex' ? 8 : form.messageType === 'image' ? 3 : 4}
             placeholder={
@@ -234,6 +237,21 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             onChange={(e) => setForm({ ...form, messageContent: e.target.value })}
             style={{ fontFamily: form.messageType !== 'text' ? 'monospace' : 'inherit' }}
           />
+          {/* 名前差し込みは「タグ指定の個別送信」でのみ効く（worker: sendTagBroadcastPerFriend）。
+              テキスト × タグ配信のときだけ挿入ボタンを出し、全体/複数アカウント配信では
+              使えないことを注記する（誤解と生の {{name}} 流出を防ぐ）。 */}
+          {form.messageType === 'text' && form.targetType === 'tag' && (
+            <InsertNameButton
+              textareaRef={bodyRef}
+              value={form.messageContent}
+              onChange={(next) => setForm({ ...form, messageContent: next })}
+            />
+          )}
+          {form.messageType === 'text' && form.targetType !== 'tag' && (
+            <p className="text-xs text-gray-400 mt-1.5">
+              ⚠ 全体配信・複数アカウント配信では変数（{'{{name}}'}）は使えません。名前などの差し込みを使うには「タグ」指定で配信してください。
+            </p>
+          )}
           {form.messageType === 'image' && (
             <p className="text-xs text-gray-400 mt-1">上のURLフォームか、直接JSONを編集できます</p>
           )}
