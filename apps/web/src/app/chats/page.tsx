@@ -9,6 +9,8 @@ import CcPromptButton from '@/components/cc-prompt-button'
 import FlexPreviewComponent from '@/components/flex-preview'
 import FriendInfoSidebar from '@/components/chats/friend-info-sidebar'
 import ImageUploader, { type ImageUploaderValue } from '@/components/shared/image-uploader'
+import SceneInsertButton from '@/components/chats/scene-insert-button'
+import { MESSAGE_SCENES, renderSceneMessage } from '@/components/friends/message-scenes'
 
 interface Chat {
   id: string
@@ -449,6 +451,28 @@ export default function ChatsPage() {
       setChatDetail(null)
     }
   }, [selectedChatId, loadChatDetail])
+
+  // 場面文面を入力欄へ挿入する。既存入力があるときは上書きせず末尾に追記（ロスなし）。
+  const insertScene = (text: string) => {
+    setMessageContent((prev) => (prev.trim() === '' ? text : `${prev}\n${text}`))
+    requestAnimationFrame(() => textareaRef.current?.focus())
+  }
+
+  // ダッシュボードのパネルから ?scene=<sceneId> 付きで遷移してきたとき、その顧客の
+  // 名前を差し込んだ場面文面を入力欄にプリセットする（顧客名が判明する chatDetail
+  // ロード後）。入力済みなら上書きしない。同じ chat×scene には一度だけ適用する。
+  const presetAppliedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!chatDetail || typeof window === 'undefined') return
+    const sceneId = new URLSearchParams(window.location.search).get('scene')
+    if (!sceneId) return
+    const key = `${chatDetail.id}:${sceneId}`
+    if (presetAppliedRef.current === key) return
+    const scene = MESSAGE_SCENES.find((s) => s.id === sceneId)
+    if (!scene) return
+    presetAppliedRef.current = key
+    setMessageContent((prev) => (prev.trim() === '' ? renderSceneMessage(scene.template, chatDetail.friendName) : prev))
+  }, [chatDetail])
 
   // Surface deep-linked chats in the sidebar even when the current account
   // filter or status filter would exclude them — otherwise the user replies
@@ -1062,6 +1086,10 @@ export default function ChatsPage() {
                     />
                     <span>Shift+Enter</span>
                   </label>
+                </div>
+                {/* 場面から選ぶ（message-scenes の5場面を名前差し込みで入力欄へ） */}
+                <div className="mb-2">
+                  <SceneInsertButton friendName={chatDetail.friendName} onInsert={insertScene} />
                 </div>
                 <div className="mb-2">
                   <ImageUploader

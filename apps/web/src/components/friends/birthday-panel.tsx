@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
@@ -61,6 +62,7 @@ function relativeLabel(daysUntil: number): string {
 }
 
 export default function BirthdayPanel({ friends, loading, error, onToast, onChanged }: Props) {
+  const router = useRouter()
   const [sendTarget, setSendTarget] = useState<{ id: string; name: string } | null>(null)
   // 「対応済み」にした友だちをその場で消すための楽観的セット（key = friendId）。
   const [handled, setHandled] = useState<Set<string>>(new Set())
@@ -138,7 +140,14 @@ export default function BirthdayPanel({ friends, loading, error, onToast, onChan
                 className="border border-accent/40 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-accent/10 to-white"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{b.name || '名前なし'}</p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/chats?friend=${b.id}&scene=birthday`)}
+                    className="text-sm font-medium text-gray-900 hover:text-brand hover:underline truncate max-w-full text-left"
+                    title="チャットを開く（お祝い文面をプリセット）"
+                  >
+                    {b.name || '名前なし'}
+                  </button>
                   <p className="text-xs text-gray-600 mt-0.5">
                     {b.month}月{b.day}日
                     <span

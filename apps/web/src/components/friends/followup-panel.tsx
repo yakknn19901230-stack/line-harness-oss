@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
@@ -53,6 +54,7 @@ function dueLabel(days: number): string {
  * done=false かつ 期日が今日以前（超過含む）を集めて表示する。
  */
 export default function FollowupPanel({ friends, loading, error, onToast, onChanged }: Props) {
+  const router = useRouter()
   const [sendTarget, setSendTarget] = useState<DueFollowup | null>(null)
   // 「済みにする」を押した項目をその場で消すための楽観的セット（key = friendId:index）。
   const [handled, setHandled] = useState<Set<string>>(new Set())
@@ -143,7 +145,14 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
                 className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-accent/10 to-white"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{d.name || '名前なし'}</p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/chats?friend=${d.friendId}`)}
+                    className="text-sm font-medium text-gray-900 hover:text-brand hover:underline truncate max-w-full text-left"
+                    title="チャットを開く"
+                  >
+                    {d.name || '名前なし'}
+                  </button>
                   <p className="text-xs text-gray-700 mt-0.5 break-words">{d.note || '（ひとことなし）'}</p>
                   <p className="text-xs text-gray-600 mt-0.5">
                     期日 {d.dateLabel}

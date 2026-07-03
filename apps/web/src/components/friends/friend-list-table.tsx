@@ -40,8 +40,6 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
   // add/remove). Without this expander operators would lose the only path
   // to mutate friend tags from the admin UI.
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [addingTagForFriend, setAddingTagForFriend] = useState<string | null>(null)
-  const [selectedTagId, setSelectedTagId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   // 顧客情報 (誕生日・契約更新日) 編集モーダルの対象。null で閉じている。
@@ -53,25 +51,7 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
-    setAddingTagForFriend(null)
-    setSelectedTagId('')
     setError('')
-  }
-
-  const handleAddTag = async (friendId: string) => {
-    if (!selectedTagId) return
-    setLoading(true)
-    setError('')
-    try {
-      await api.friends.addTag(friendId, selectedTagId)
-      setAddingTagForFriend(null)
-      setSelectedTagId('')
-      onRefresh()
-    } catch {
-      setError('タグの追加に失敗しました')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const handleRemoveTag = async (friendId: string, tagId: string) => {
@@ -95,10 +75,10 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
     )
   }
 
-  // タグ管理の展開部（PC 行の下・スマホ カードの下 で共通利用）
+  // タグ管理の展開部（PC 行の下で利用）。タグの追加/新規作成/削除は、スマホと
+  // 同じシート型モーダル(TagEditModal)を開いて行う（既存タグからの選択＋新規作成が
+  // 両方できる／PCで「追加UIが無い」問題を解消）。
   const renderTagEditor = (friend: FriendListItem) => {
-    const isAddingTag = addingTagForFriend === friend.id
-    const availableTags = allTags.filter((t) => !friend.tags.some((ft) => ft.id === t.id))
     return (
       <div className="bg-gray-50 px-4 sm:px-6 py-4 border-b border-gray-100 space-y-3">
         <div>
@@ -107,50 +87,24 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
         </div>
         <p className="text-xs font-semibold text-gray-500 mb-2">タグ管理</p>
         <div className="flex flex-wrap gap-1.5 mb-2">
-          {friend.tags.map((tag) => (
-            <TagBadge key={tag.id} tag={tag} onRemove={() => handleRemoveTag(friend.id, tag.id)} />
-          ))}
+          {friend.tags.length > 0 ? (
+            friend.tags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} onRemove={() => handleRemoveTag(friend.id, tag.id)} />
+            ))
+          ) : (
+            <span className="text-xs text-gray-400">まだタグはありません。</span>
+          )}
         </div>
-        {isAddingTag ? (
-          <div className="flex items-center gap-2">
-            <select
-              className="flex-1 sm:flex-none text-sm border border-gray-300 rounded-md px-2 py-2 min-h-[40px] focus:outline-none focus:ring-2 focus:ring-green-500"
-              value={selectedTagId}
-              onChange={(e) => setSelectedTagId(e.target.value)}
-            >
-              <option value="">タグを選択...</option>
-              {availableTags.map((tag) => (
-                <option key={tag.id} value={tag.id}>{tag.name}</option>
-              ))}
-            </select>
-            <button
-              onClick={() => handleAddTag(friend.id)}
-              disabled={!selectedTagId || loading}
-              className="px-3 py-2 min-h-[40px] text-sm font-medium rounded-md text-white disabled:opacity-50 transition-opacity"
-              style={{ backgroundColor: '#14283F' }}
-            >
-              追加
-            </button>
-            <button
-              onClick={() => { setAddingTagForFriend(null); setSelectedTagId('') }}
-              className="px-3 py-2 min-h-[40px] text-sm font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
-            >
-              キャンセル
-            </button>
-          </div>
-        ) : (
-          availableTags.length > 0 && (
-            <button
-              onClick={() => setAddingTagForFriend(friend.id)}
-              className="text-sm font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              タグを追加
-            </button>
-          )
-        )}
+        <button
+          type="button"
+          onClick={() => setTagEditFriend(friend)}
+          className="min-h-[40px] px-3 rounded-lg text-sm font-medium text-brand border border-gray-300 hover:bg-gray-50 flex items-center gap-1 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          タグを追加・新規作成
+        </button>
       </div>
     )
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
@@ -53,6 +54,7 @@ function relativeLabel(days: number): string {
 }
 
 export default function RenewalPanel({ friends, loading, error, onToast, onChanged }: Props) {
+  const router = useRouter()
   const [sendTarget, setSendTarget] = useState<{ id: string; name: string; contractIndex: number } | null>(null)
   // 「対応済み」にした契約をその場で消すための楽観的セット（key = friendId:contractIndex）。
   const [handled, setHandled] = useState<Set<string>>(new Set())
@@ -147,7 +149,14 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
                 className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-brand/5 to-white"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{r.name || '名前なし'}</p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/chats?friend=${r.friendId}&scene=renewal_notice`)}
+                    className="text-sm font-medium text-gray-900 hover:text-brand hover:underline truncate max-w-full text-left"
+                    title="チャットを開く（更新案内文面をプリセット）"
+                  >
+                    {r.name || '名前なし'}
+                  </button>
                   <p className="text-xs text-gray-600 mt-0.5 truncate">{r.contractName}</p>
                   <p className="text-xs text-gray-600 mt-0.5">
                     更新 {r.dateLabel}
