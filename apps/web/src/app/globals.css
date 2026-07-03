@@ -43,3 +43,23 @@
   --color-emerald-800: #1a3049;
   --color-emerald-900: #14283f;
 }
+
+/*
+ * モバイルの操作感（タップ確実性・体感速度）の底上げ。
+ * - text-size-adjust: iOS が横向き等でフォントを勝手に拡大するのを止める。
+ * - touch-action: manipulation: ダブルタップズーム判定に伴う ~300ms のタップ遅延を無くし、
+ *   「タップ→即反応」にする（操作を潰さず、ピンチズーム自体は残す）。
+ */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+button,
+a,
+input,
+textarea,
+select,
+label,
+[role="button"] {
+  touch-action: manipulation;
+}

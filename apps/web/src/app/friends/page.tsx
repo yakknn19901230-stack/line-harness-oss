@@ -11,6 +11,7 @@ import RenewalPanel from '@/components/friends/renewal-panel'
 import FollowupPanel from '@/components/friends/followup-panel'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
+import { useAllFriends } from '@/hooks/use-all-friends'
 
 const ccPrompts = [
   {
@@ -60,6 +61,9 @@ export default function FriendsPage() {
   // 誕生日パネルは全友だちを自前取得する。顧客情報(誕生日)が保存されたら
   // このキーを増やしてパネルに再取得を促す。
   const [birthdayRefreshKey, setBirthdayRefreshKey] = useState(0)
+  // 誕生日/更新/フォローの3パネルは、この1回の全件取得を共有する
+  // （従来は各パネルが個別に全件取得＝3往復。1回に集約して体感を軽くする）。
+  const panelData = useAllFriends(selectedAccountId, birthdayRefreshKey)
 
   const loadTags = useCallback(async () => {
     try {
@@ -149,24 +153,27 @@ export default function FriendsPage() {
       />
 
       {/* 今週の誕生日パネル — メインの一覧のページングに依存せず、全友だちを
-          自前取得して算出する。該当者ゼロなら静かに案内する。 */}
+          共有取得(panelData)して算出する。該当者ゼロなら静かに案内する。 */}
       <BirthdayPanel
-        accountId={selectedAccountId}
-        refreshKey={birthdayRefreshKey}
+        friends={panelData.friends}
+        loading={panelData.loading}
+        error={panelData.error}
         onToast={showToast}
       />
 
-      {/* 契約更新が近い顧客（誕生日パネルと同じ全件取得・判定パターン） */}
+      {/* 契約更新が近い顧客（誕生日パネルと同じ共有データで判定） */}
       <RenewalPanel
-        accountId={selectedAccountId}
-        refreshKey={birthdayRefreshKey}
+        friends={panelData.friends}
+        loading={panelData.loading}
+        error={panelData.error}
         onToast={showToast}
       />
 
       {/* 今日のフォロー予定（次回フォローの期日到来分） */}
       <FollowupPanel
-        accountId={selectedAccountId}
-        refreshKey={birthdayRefreshKey}
+        friends={panelData.friends}
+        loading={panelData.loading}
+        error={panelData.error}
         onToast={showToast}
       />
 
@@ -263,6 +270,7 @@ export default function FriendsPage() {
             // 誕生日を編集した可能性があるので、パネルの母集団を取り直す
             setBirthdayRefreshKey((k) => k + 1)
           }}
+          onCustomerInfoError={showToast}
           onMessageSent={showToast}
         />
       )}

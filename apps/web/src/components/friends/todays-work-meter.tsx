@@ -1,22 +1,21 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAllFriends } from '@/hooks/use-all-friends'
+import type { FriendListItem } from '@/lib/api'
 import { countTodaysWork } from './todays-work'
 
 interface Props {
-  accountId: string | null
-  /** パネルで対応済みにしたら親から increment して再集計させる。 */
-  refreshKey?: number
+  /** ページ側で1回だけ取得した全友だちを共有（各パネルと同一データ）。 */
+  friends: FriendListItem[]
+  loading: boolean
 }
 
 /**
  * 「今日の保全：残り◯件（誕生日◯・更新◯・フォロー◯）」の1行メーター。
- * 誕生日/更新/フォローの各パネルと同じ判定（todays-work）で数える。
+ * 誕生日/更新/フォローの各パネルと同じ判定（todays-work）・同じ共有データで数える。
  * すべて捌けたら控えめに「今日の保全は完了です！」を出す。
  */
-export default function TodaysWorkMeter({ accountId, refreshKey }: Props) {
-  const { friends, loading } = useAllFriends(accountId, refreshKey)
+export default function TodaysWorkMeter({ friends, loading }: Props) {
   const counts = useMemo(() => countTodaysWork(friends, new Date()), [friends])
 
   if (loading) {

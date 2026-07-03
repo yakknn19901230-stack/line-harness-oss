@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { api } from '@/lib/api'
-import { useAllFriends } from '@/hooks/use-all-friends'
+import type { FriendListItem } from '@/lib/api'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import MessageSendModal from './message-send-modal'
 import PanelShell from './panel-shell'
@@ -12,8 +12,10 @@ import { parseFollowups, ymdToSlash } from './customer-notes'
 const MOBILE_LIMIT = 5
 
 interface Props {
-  accountId: string | null
-  refreshKey?: number
+  /** ページ側で1回だけ取得した全友だち（誕生日/更新/フォローで共有）。 */
+  friends: FriendListItem[]
+  loading: boolean
+  error?: boolean
   onToast: (message: string) => void
   /** 対応済みにしたら親に通知（残り件数メーターの再集計用）。 */
   onChanged?: () => void
@@ -50,10 +52,7 @@ function dueLabel(days: number): string {
  * （useAllFriends + PanelShell）で、metadata.followups のうち
  * done=false かつ 期日が今日以前（超過含む）を集めて表示する。
  */
-export default function FollowupPanel({ accountId, refreshKey, onToast, onChanged }: Props) {
-  const [localBump, setLocalBump] = useState(0)
-  const combinedKey = (refreshKey ?? 0) + localBump
-  const { friends, loading, error } = useAllFriends(accountId, combinedKey)
+export default function FollowupPanel({ friends, loading, error, onToast, onChanged }: Props) {
   const [sendTarget, setSendTarget] = useState<DueFollowup | null>(null)
   // 「済みにする」を押した項目をその場で消すための楽観的セット（key = friendId:index）。
   const [handled, setHandled] = useState<Set<string>>(new Set())

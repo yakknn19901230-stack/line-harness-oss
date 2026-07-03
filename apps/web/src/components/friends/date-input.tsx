@@ -78,7 +78,9 @@ export default function DateInput({ value, onChange, id, ariaLabel, invalid, cla
       onChange={(e) => onChange(formatStream(e.target.value))}
       onBlur={(e) => onChange(padOnBlur(e.target.value))}
       maxLength={10}
-      className={`${className ?? ''} border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+      // text-base (16px) は必須: iOS Safari はフォント16px未満の入力欄にフォーカスすると
+      // 自動でズームしてしまい、操作感が大きく損なわれる。ここを16pxに保つ。
+      className={`${className ?? ''} border rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 ${
         invalid ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-green-500'
       }`}
     />

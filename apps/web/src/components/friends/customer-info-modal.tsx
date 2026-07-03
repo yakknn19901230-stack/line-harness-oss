@@ -19,6 +19,8 @@ interface Props {
   onClose: () => void
   /** 保存成功時。呼び出し側で一覧の再読込やトースト表示を行う */
   onSaved: (message: string) => void
+  /** 保存失敗時（楽観的クローズ後）。呼び出し側でトースト表示し、必要なら元に戻す */
+  onSaveError?: (message: string) => void
 }
 
 /** 契約1件の編集状態。契約名は自由入力、更新日は YYYY-MM-DD（未入力なら空）。 */
@@ -71,9 +73,8 @@ function loadContracts(meta: Record<string, unknown>): ContractRow[] {
  * 連絡先（電話・メール）保存時は、既存の users API で友だち⇔ユーザーのUUIDリンクを
  * 自動実行する（LINE BAN 時の顧客データ再接続のための裏の保険）。
  */
-export default function CustomerInfoModal({ friendId, friendName, onClose, onSaved }: Props) {
+export default function CustomerInfoModal({ friendId, friendName, onClose, onSaved, onSaveError }: Props) {
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const [birthday, setBirthday] = useState('') // 表示用 YYYY/MM/DD
@@ -204,11 +205,12 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
     }
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     setAttempted(true)
 
-    // 日付の検証（表示 YYYY/MM/DD → 保存 YYYY-MM-DD）。空は許容、不完全/不正はその場でエラー。
+    // 日付の検証（表示 YYYY/MM/DD → 保存 YYYY-MM-DD）。空は許容、不完全/不正はその場で
+    // エラー表示してモーダルを閉じない（＝この時点では楽観クローズしない）。
     const bd = displayToStored(birthday)
     if (!bd.ok) {
       setError('誕生日は YYYY/MM/DD の形式で正しく入力してください（例: 1985/07/02）')
@@ -221,63 +223,59 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
       return
     }
 
-    setSaving(true)
-    setError('')
-    try {
-      // 契約: 完全に空の行は落として配列化。更新日は YYYY-MM-DD で保存。
-      // notified_at（更新パネルの対応済み記録）は UI で触らず、あれば素通しで保持する。
-      const contractsPayload = contractResults
-        .map((cr, i) => {
-          const notifiedAt = contracts[i]?.notifiedAt
-          return {
-            name: cr.name,
-            renewal_date: cr.date.value,
-            ...(notifiedAt ? { notified_at: notifiedAt } : {}),
-          }
-        })
-        .filter((c) => c.name !== '' || c.renewal_date !== '')
-
-      const emailVal = email.trim()
-      const phoneVal = phone.trim()
-
-      // 1) metadata 保存。旧 renewal_date（単一キー）は contracts へ移行済みなので削除(null)。
-      // 未確定の入力欄（メモ・フォロー）が残っていれば取りこぼさず保存に含める。
-      const notesPayload =
-        noteDraft.trim() !== '' ? [{ date: todayYmd(), text: noteDraft.trim() }, ...notes] : notes
-      let followupsPayload = followups
-      const pendingFu = displayToStored(fuDate)
-      if (pendingFu.ok && pendingFu.value !== '') {
-        followupsPayload = [...followups, { date: pendingFu.value, note: fuNote.trim(), done: false }]
-      }
-
-      const res = await api.friends.updateMetadata(friendId, {
-        birthday: bd.value || null,
-        contracts: contractsPayload,
-        renewal_date: null,
-        phone: phoneVal || null,
-        email: emailVal || null,
-        notes: notesPayload,
-        followups: followupsPayload,
+    // 契約: 完全に空の行は落として配列化。更新日は YYYY-MM-DD で保存。
+    // notified_at（更新パネルの対応済み記録）は UI で触らず、あれば素通しで保持する。
+    const contractsPayload = contractResults
+      .map((cr, i) => {
+        const notifiedAt = contracts[i]?.notifiedAt
+        return {
+          name: cr.name,
+          renewal_date: cr.date.value,
+          ...(notifiedAt ? { notified_at: notifiedAt } : {}),
+        }
       })
-      if (!res.success) {
-        setError(res.error || '保存に失敗しました')
-        return
-      }
+      .filter((c) => c.name !== '' || c.renewal_date !== '')
 
-      // 2) 連絡先があれば UUID リンク（ベストエフォート）
-      const linkOk = await ensureUuidLink(emailVal, phoneVal)
+    const emailVal = email.trim()
+    const phoneVal = phone.trim()
 
-      onSaved(
-        linkOk
-          ? '顧客情報を保存しました'
-          : '連絡先は保存しましたが、バックアップ用の紐付けに失敗しました',
-      )
-      onClose()
-    } catch {
-      setError('保存に失敗しました。通信状況をご確認のうえ、もう一度お試しください。')
-    } finally {
-      setSaving(false)
+    // 未確定の入力欄（メモ・フォロー）が残っていれば取りこぼさず保存に含める。
+    const notesPayload =
+      noteDraft.trim() !== '' ? [{ date: todayYmd(), text: noteDraft.trim() }, ...notes] : notes
+    let followupsPayload = followups
+    const pendingFu = displayToStored(fuDate)
+    if (pendingFu.ok && pendingFu.value !== '') {
+      followupsPayload = [...followups, { date: pendingFu.value, note: fuNote.trim(), done: false }]
     }
+
+    const payload = {
+      birthday: bd.value || null,
+      contracts: contractsPayload,
+      renewal_date: null, // 旧 renewal_date（単一キー）は contracts へ移行済みなので削除
+      phone: phoneVal || null,
+      email: emailVal || null,
+      notes: notesPayload,
+      followups: followupsPayload,
+    }
+
+    // ── 楽観的更新 ──
+    // 押した瞬間にモーダルを閉じる（体感ゼロ）。保存API と UUIDリンクは裏で実行し、
+    // 成功したら一覧を更新、失敗したらトーストで知らせる（付随のリンクは並行・ベストエフォート）。
+    onClose()
+    void (async () => {
+      try {
+        const res = await api.friends.updateMetadata(friendId, payload)
+        if (!res.success) {
+          onSaveError?.('保存に失敗しました。もう一度お試しください。')
+          return
+        }
+        onSaved('顧客情報を保存しました')
+        // 連絡先があれば UUID リンク（裏で並行・失敗しても保存は成立済み）
+        ensureUuidLink(emailVal, phoneVal).catch(() => {})
+      } catch {
+        onSaveError?.('保存に失敗しました。通信状況をご確認ください。')
+      }
+    })()
   }
 
   return (
@@ -539,11 +537,11 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
             </button>
             <button
               type="submit"
-              disabled={saving || loading}
+              disabled={loading}
               className="flex-1 sm:flex-none min-h-[44px] px-6 rounded-lg text-white text-sm font-medium disabled:opacity-50 transition-opacity"
               style={{ backgroundColor: '#14283F' }}
             >
-              {saving ? '保存中…' : '保存する'}
+              保存する
             </button>
           </div>
         </form>

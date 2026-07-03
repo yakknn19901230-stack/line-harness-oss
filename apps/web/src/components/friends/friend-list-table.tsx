@@ -18,11 +18,13 @@ interface Props {
   /** 顧客情報の保存に成功したとき。トーストはページ側で出す
    *  （一覧再読込でこのテーブルが一時的にアンマウントされてもトーストが消えないように）。 */
   onCustomerInfoSaved?: (message: string) => void
+  /** 顧客情報の保存に失敗したとき（楽観クローズ後）。ページ側でトースト表示。 */
+  onCustomerInfoError?: (message: string) => void
   /** メッセージ送信成功時のトースト（再読込を伴わない）。ページ側で出す。 */
   onMessageSent?: (message: string) => void
 }
 
-export default function FriendListTable({ friends, allTags, onRefresh, onCustomerInfoSaved, onMessageSent }: Props) {
+export default function FriendListTable({ friends, allTags, onRefresh, onCustomerInfoSaved, onCustomerInfoError, onMessageSent }: Props) {
   // Inline tag-management expander. The row's primary click navigates to
   // /chats; tag editing stays available here as a secondary action because
   // the chats page's FriendInfoSidebar currently only displays tags (no
@@ -200,6 +202,7 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
           onCustomerInfoSaved?.(message)
           onRefresh()
         }}
+        onSaveError={(message) => onCustomerInfoError?.(message)}
       />
     )}
 

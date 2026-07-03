@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
-import { useAllFriends } from '@/hooks/use-all-friends'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import { todayYmd } from './customer-notes'
 import { isBirthdaySuppressed, BIRTHDAY_WINDOW_DAYS } from './todays-work'
@@ -14,10 +13,10 @@ import PanelShell from './panel-shell'
 const MOBILE_LIMIT = 5
 
 interface Props {
-  /** 対象アカウント（null=全アカウント）。メインの一覧と同じスコープに合わせる。 */
-  accountId: string | null
-  /** 親で顧客情報が保存された等、パネルの再取得を促したいときに増やすキー。 */
-  refreshKey?: number
+  /** ページ側で1回だけ取得した全友だち（誕生日/更新/フォローで共有）。 */
+  friends: FriendListItem[]
+  loading: boolean
+  error?: boolean
   /** 送信成功トーストはページ側で出す */
   onToast: (message: string) => void
   /** 対応済みにしたら親に通知（残り件数メーターの再集計用）。 */
@@ -61,8 +60,7 @@ function relativeLabel(daysUntil: number): string {
   return `あと${daysUntil}日`
 }
 
-export default function BirthdayPanel({ accountId, refreshKey, onToast, onChanged }: Props) {
-  const { friends, loading, error } = useAllFriends(accountId, refreshKey)
+export default function BirthdayPanel({ friends, loading, error, onToast, onChanged }: Props) {
   const [sendTarget, setSendTarget] = useState<{ id: string; name: string } | null>(null)
   // 「対応済み」にした友だちをその場で消すための楽観的セット（key = friendId）。
   const [handled, setHandled] = useState<Set<string>>(new Set())

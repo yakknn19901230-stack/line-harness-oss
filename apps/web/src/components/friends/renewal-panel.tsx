@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { api } from '@/lib/api'
-import { useAllFriends } from '@/hooks/use-all-friends'
+import type { FriendListItem } from '@/lib/api'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import { todayYmd } from './customer-notes'
 import { isContractSuppressed, RENEWAL_WINDOW_DAYS } from './todays-work'
@@ -13,8 +13,10 @@ import PanelShell from './panel-shell'
 const MOBILE_LIMIT = 5
 
 interface Props {
-  accountId: string | null
-  refreshKey?: number
+  /** ページ側で1回だけ取得した全友だち（誕生日/更新/フォローで共有）。 */
+  friends: FriendListItem[]
+  loading: boolean
+  error?: boolean
   onToast: (message: string) => void
   /** 対応済みにしたら親に通知（残り件数メーターの再集計用）。 */
   onChanged?: () => void
@@ -50,8 +52,7 @@ function relativeLabel(days: number): string {
   return `あと${days}日`
 }
 
-export default function RenewalPanel({ accountId, refreshKey, onToast, onChanged }: Props) {
-  const { friends, loading, error } = useAllFriends(accountId, refreshKey)
+export default function RenewalPanel({ friends, loading, error, onToast, onChanged }: Props) {
   const [sendTarget, setSendTarget] = useState<{ id: string; name: string; contractIndex: number } | null>(null)
   // 「対応済み」にした契約をその場で消すための楽観的セット（key = friendId:contractIndex）。
   const [handled, setHandled] = useState<Set<string>>(new Set())
