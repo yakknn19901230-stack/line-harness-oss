@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
 import Header from '@/components/layout/header'
 import FriendListTable from '@/components/friends/friend-list-table'
+import BulkTagModal from '@/components/friends/bulk-tag-modal'
 import BirthdayPanel from '@/components/friends/birthday-panel'
 import RenewalPanel from '@/components/friends/renewal-panel'
 import FollowupPanel from '@/components/friends/followup-panel'
@@ -64,6 +65,78 @@ export default function FriendsPage() {
   // 誕生日/更新/フォローの3パネルは、この1回の全件取得を共有する
   // （従来は各パネルが個別に全件取得＝3往復。1回に集約して体感を軽くする）。
   const panelData = useAllFriends(selectedAccountId, birthdayRefreshKey)
+
+  // ── 選択モード（一括タグ付け）──
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [nameById, setNameById] = useState<Record<string, string>>({})
+  const [selectAllBusy, setSelectAllBusy] = useState(false)
+  const [bulkMode, setBulkMode] = useState<'add' | 'remove' | null>(null)
+
+  // 名前の逆引きを、表示中の一覧から随時ためておく（一括処理の失敗列挙で使う）。
+  useEffect(() => {
+    if (friends.length === 0) return
+    setNameById((prev) => {
+      const next = { ...prev }
+      for (const f of friends) next[f.id] = f.displayName
+      return next
+    })
+  }, [friends])
+
+  const toggleSelectionMode = () => {
+    setSelectionMode((on) => {
+      if (on) setSelectedIds(new Set()) // 抜けるときは選択クリア
+      return !on
+    })
+  }
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const clearSelection = () => setSelectedIds(new Set())
+
+  // 現在の検索・フィルタ結果の「全件」をページまたぎで取得して全選択する。
+  const selectAllMatching = async () => {
+    setSelectAllBusy(true)
+    try {
+      const ids: string[] = []
+      const names: Record<string, string> = {}
+      let offset = 0
+      const LIMIT = 200
+      while (ids.length < 5000) {
+        const res = await api.friends.list({
+          offset: String(offset),
+          limit: LIMIT,
+          tagId: selectedTagId || undefined,
+          accountId: selectedAccountId || undefined,
+          search: searchSubmitted || undefined,
+          sort: sortMode,
+          handled: responseFilter === 'unhandled' ? 'unhandled' : undefined,
+        })
+        if (!res.success) break
+        for (const f of res.data.items) { ids.push(f.id); names[f.id] = f.displayName }
+        if (!res.data.hasNextPage || res.data.items.length === 0) break
+        offset += res.data.items.length
+      }
+      setNameById((prev) => ({ ...prev, ...names }))
+      setSelectedIds(new Set(ids))
+    } catch {
+      showToast('全選択に失敗しました。もう一度お試しください。')
+    } finally {
+      setSelectAllBusy(false)
+    }
+  }
+
+  // 単体タグ編集モーダル / 一括処理の結果を一覧タグへ楽観的に反映する。
+  const patchFriendTags = (friendId: string, tags: FriendListItem['tags']) => {
+    setFriends((prev) => prev.map((f) => (f.id === friendId ? { ...f, tags } : f)))
+  }
+  const selectedFriendsForBulk = () =>
+    Array.from(selectedIds).map((id) => ({ id, name: nameById[id] ?? id }))
 
   const loadTags = useCallback(async () => {
     try {
@@ -236,6 +309,45 @@ export default function FriendsPage() {
         </div>
       </div>
 
+      {/* 選択モードの操作行（複数選択→一括タグ付け） */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {!selectionMode ? (
+          <button
+            type="button"
+            onClick={toggleSelectionMode}
+            className="min-h-[44px] px-4 rounded-lg text-sm font-medium text-brand border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            選択
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={toggleSelectionMode}
+              className="min-h-[44px] px-4 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={selectAllMatching}
+              disabled={selectAllBusy}
+              className="min-h-[44px] px-4 rounded-lg text-sm font-medium text-brand border border-gray-300 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {selectAllBusy ? '取得中…' : `全選択（${total.toLocaleString('ja-JP')}件）`}
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="min-h-[44px] px-4 rounded-lg text-sm font-medium border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              選択解除
+            </button>
+            <span className="text-sm font-semibold text-gray-800 ml-auto">{selectedIds.size}人選択中</span>
+          </>
+        )}
+      </div>
+
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
@@ -272,6 +384,11 @@ export default function FriendsPage() {
           }}
           onCustomerInfoError={showToast}
           onMessageSent={showToast}
+          onTagsChanged={patchFriendTags}
+          onTagCreated={loadTags}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
         />
       )}
 
@@ -298,6 +415,52 @@ export default function FriendsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* 一括操作バー（選択中のみ）。スマホは下部固定、PCは通常フロー。 */}
+      {selectionMode && selectedIds.size > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 bg-white border-t border-gray-200 shadow-lg p-3 lg:static lg:border lg:rounded-lg lg:shadow-none lg:mt-4">
+          <div className="flex items-center gap-2 max-w-3xl mx-auto">
+            <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">{selectedIds.size}人</span>
+            <button
+              type="button"
+              onClick={() => setBulkMode('add')}
+              className="flex-1 min-h-[44px] px-3 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
+              style={{ backgroundColor: '#14283F' }}
+            >
+              タグを付ける
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkMode('remove')}
+              className="flex-1 min-h-[44px] px-3 rounded-lg text-sm font-medium text-brand border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              タグを外す
+            </button>
+          </div>
+        </div>
+      )}
+      {/* 下部固定バーに隠れないよう、スマホは余白を足す */}
+      {selectionMode && selectedIds.size > 0 && <div className="h-20 lg:hidden" />}
+
+      {bulkMode && (
+        <BulkTagModal
+          mode={bulkMode}
+          friends={selectedFriendsForBulk()}
+          allTags={allTags}
+          onClose={() => setBulkMode(null)}
+          onDone={({ failedNames }) => {
+            const okCount = selectedIds.size - failedNames.length
+            showToast(
+              failedNames.length === 0
+                ? `${okCount}人に反映しました`
+                : `${okCount}人に反映（${failedNames.length}人失敗）`,
+            )
+            loadFriends()
+            loadTags()
+          }}
+          onTagCreated={loadTags}
+        />
       )}
 
       <CcPromptButton prompts={ccPrompts} />

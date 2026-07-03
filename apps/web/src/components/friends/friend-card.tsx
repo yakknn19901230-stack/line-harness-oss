@@ -11,6 +11,10 @@ interface Props {
   onTagEditClick: () => void
   onEditInfoClick: () => void
   onSendMessageClick: () => void
+  // ── 選択モード（一括タグ付け）──
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
 }
 
 /**
@@ -18,7 +22,7 @@ interface Props {
  * PC のテーブル行(FriendListRow)と同じ導線を、縦積み・親指操作しやすい形で提供する。
  * 上部の情報エリアをタップで /chats へ。下部のボタンは stopPropagation。
  */
-export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, onSendMessageClick }: Props) {
+export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, onSendMessageClick, selectionMode = false, selected = false, onToggleSelect }: Props) {
   const router = useRouter()
   const navigateToChat = () => router.push(`/chats?friend=${friend.id}`)
   const incoming = friend.latestIncomingMessage
@@ -28,19 +32,32 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
   const notePreview = latestNotePreview(meta)
 
   return (
-    <div className="border-b border-gray-100 p-4">
-      {/* 情報エリア（タップで個別チャットへ） */}
+    <div className={`border-b border-gray-100 p-4 ${selectionMode && selected ? 'bg-accent/10' : ''}`}>
+      {/* 情報エリア（通常=タップで個別チャットへ / 選択モード=タップで選択トグル） */}
       <div
-        role="link"
+        role={selectionMode ? 'checkbox' : 'link'}
+        aria-checked={selectionMode ? selected : undefined}
         tabIndex={0}
-        onClick={navigateToChat}
+        onClick={selectionMode ? onToggleSelect : navigateToChat}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) return
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigateToChat() }
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (selectionMode ? onToggleSelect : navigateToChat)?.() }
         }}
         className="cursor-pointer -m-1 p-1 rounded-lg focus:outline-none focus:bg-gray-50"
       >
         <div className="flex items-start gap-3">
+          {selectionMode && (
+            <span className="shrink-0 mt-0.5 flex items-center justify-center w-11 h-11 -ml-1">
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => onToggleSelect?.()}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`${friend.displayName} を選択`}
+                className="w-6 h-6 accent-brand pointer-events-none"
+              />
+            </span>
+          )}
           {friend.pictureUrl ? (
             <img src={friend.pictureUrl} alt={friend.displayName} className="w-11 h-11 rounded-full object-cover bg-gray-100 shrink-0" />
           ) : (
@@ -99,7 +116,8 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
         )}
       </div>
 
-      {/* 操作ボタン（親指サイズ 44px） */}
+      {/* 操作ボタン（親指サイズ 44px）。選択モード中は隠す（選択に集中）。 */}
+      {!selectionMode && (
       <div className="flex items-center gap-2 mt-3">
         <button
           type="button"
@@ -124,6 +142,7 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
           タグ
         </button>
       </div>
+      )}
     </div>
   )
 }

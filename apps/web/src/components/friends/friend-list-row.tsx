@@ -17,6 +17,10 @@ interface Props {
   onEditInfoClick?: () => void
   // Opens the 場面別メッセージ送信モーダル. Same stopPropagation treatment.
   onSendMessageClick?: () => void
+  // ── 選択モード（一括タグ付け）──
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
 }
 
 // Single row of the L-step style friend list. Renders 5 columns:
@@ -25,7 +29,7 @@ interface Props {
 // `/chats?friend=<id>` so the operator can read history / reply / mark as
 // resolved without leaving the list. The "タグ" button at the end of the
 // last column opens an inline tag editor (handled by the parent table).
-export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick, onSendMessageClick }: Props) {
+export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick, onSendMessageClick, selectionMode = false, selected = false, onToggleSelect }: Props) {
   const router = useRouter()
   const navigateToChat = () => router.push(`/chats?friend=${friend.id}`)
   const incoming = friend.latestIncomingMessage
@@ -40,8 +44,9 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
 
   return (
     <div
-      onClick={navigateToChat}
-      role="link"
+      onClick={selectionMode ? onToggleSelect : navigateToChat}
+      role={selectionMode ? 'checkbox' : 'link'}
+      aria-checked={selectionMode ? selected : undefined}
       tabIndex={0}
       onKeyDown={(e) => {
         // Only react when the row itself is the keyboard target. Otherwise
@@ -51,13 +56,23 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
         if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          navigateToChat()
+          ;(selectionMode ? onToggleSelect : navigateToChat)?.()
         }
       }}
-      className="grid grid-cols-[80px_220px_120px_1fr_280px] gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer items-start focus:outline-none focus:bg-gray-50"
+      className={`grid grid-cols-[80px_220px_120px_1fr_280px] gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer items-start focus:outline-none focus:bg-gray-50 ${selectionMode && selected ? 'bg-accent/10' : ''}`}
     >
       {/* 対応マーク — chats.status 由来 (unread / in_progress / resolved). */}
-      <div className="pt-1">
+      <div className="pt-1 flex items-start gap-2">
+        {selectionMode && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect?.()}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`${friend.displayName} を選択`}
+            className="w-5 h-5 accent-brand mt-0.5 shrink-0"
+          />
+        )}
         {friend.chatStatus === 'unread' ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-red-100 text-red-700">
             未対応

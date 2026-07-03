@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import type { Tag } from '@line-crm/shared'
 import { api, eventsApi, type ApiBroadcast, type EventListItem } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
@@ -248,9 +249,14 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             />
           )}
           {form.messageType === 'text' && form.targetType !== 'tag' && (
-            <p className="text-xs text-gray-400 mt-1.5">
-              ⚠ 全体配信・複数アカウント配信では変数（{'{{name}}'}）は使えません。名前などの差し込みを使うには「タグ」指定で配信してください。
-            </p>
+            <div className="text-xs text-gray-400 mt-1.5 leading-relaxed">
+              <p>⚠ 全体配信・複数アカウント配信では変数（{'{{name}}'}）は使えません。名前などの差し込みを使うには「タグ」指定で配信してください。</p>
+              <p className="mt-1">
+                全員に送りたい場合は、
+                <Link href="/friends" className="text-brand underline font-medium">友だち管理</Link>
+                で全選択→共通タグ（例: 一斉配信）を付けてから、そのタグ宛てに送れます。
+              </p>
+            </div>
           )}
           {form.messageType === 'image' && (
             <p className="text-xs text-gray-400 mt-1">上のURLフォームか、直接JSONを編集できます</p>

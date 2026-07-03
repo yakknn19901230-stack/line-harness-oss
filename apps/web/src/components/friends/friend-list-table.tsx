@@ -9,6 +9,7 @@ import FriendCard from './friend-card'
 import TagBadge from './tag-badge'
 import CustomerInfoModal from './customer-info-modal'
 import MessageSendModal from './message-send-modal'
+import TagEditModal from './tag-edit-modal'
 import { DEFAULT_SCENE_ID } from './message-scenes'
 
 interface Props {
@@ -22,9 +23,17 @@ interface Props {
   onCustomerInfoError?: (message: string) => void
   /** メッセージ送信成功時のトースト（再読込を伴わない）。ページ側で出す。 */
   onMessageSent?: (message: string) => void
+  /** スマホのタグ編集モーダルでタグが変わったとき、一覧を楽観的に更新する。 */
+  onTagsChanged?: (friendId: string, tags: FriendListItem['tags']) => void
+  /** 新規タグ作成時、ページ側でタグ一覧を再取得する。 */
+  onTagCreated?: () => void
+  // ── 選択モード（一括タグ付け）──
+  selectionMode?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (friendId: string) => void
 }
 
-export default function FriendListTable({ friends, allTags, onRefresh, onCustomerInfoSaved, onCustomerInfoError, onMessageSent }: Props) {
+export default function FriendListTable({ friends, allTags, onRefresh, onCustomerInfoSaved, onCustomerInfoError, onMessageSent, onTagsChanged, onTagCreated, selectionMode = false, selectedIds, onToggleSelect }: Props) {
   // Inline tag-management expander. The row's primary click navigates to
   // /chats; tag editing stays available here as a secondary action because
   // the chats page's FriendInfoSidebar currently only displays tags (no
@@ -39,6 +48,8 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
   const [editingFriend, setEditingFriend] = useState<{ id: string; name: string } | null>(null)
   // 場面別メッセージ送信モーダルの対象。null で閉じている。
   const [messageFriend, setMessageFriend] = useState<{ id: string; name: string } | null>(null)
+  // スマホのタグ編集モーダルの対象（シート型・44px）。null で閉じている。
+  const [tagEditFriend, setTagEditFriend] = useState<FriendListItem | null>(null)
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -170,6 +181,9 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
                 onTagEditClick={() => toggleExpand(friend.id)}
                 onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName })}
                 onSendMessageClick={() => setMessageFriend({ id: friend.id, name: friend.displayName })}
+                selectionMode={selectionMode}
+                selected={selectedIds?.has(friend.id) ?? false}
+                onToggleSelect={() => onToggleSelect?.(friend.id)}
               />
               {expandedId === friend.id && renderTagEditor(friend)}
             </div>
@@ -183,11 +197,14 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
           <div key={friend.id}>
             <FriendCard
               friend={friend}
-              onTagEditClick={() => toggleExpand(friend.id)}
+              // スマホは実機で押しにくかったインライン展開をやめ、シート型モーダルを開く。
+              onTagEditClick={() => setTagEditFriend(friend)}
               onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName })}
               onSendMessageClick={() => setMessageFriend({ id: friend.id, name: friend.displayName })}
+              selectionMode={selectionMode}
+              selected={selectedIds?.has(friend.id) ?? false}
+              onToggleSelect={() => onToggleSelect?.(friend.id)}
             />
-            {expandedId === friend.id && renderTagEditor(friend)}
           </div>
         ))}
       </div>
@@ -216,6 +233,22 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
           onMessageSent?.(message)
           setMessageFriend(null)
         }}
+      />
+    )}
+
+    {tagEditFriend && (
+      <TagEditModal
+        friendId={tagEditFriend.id}
+        friendName={tagEditFriend.displayName}
+        friendTags={tagEditFriend.tags}
+        allTags={allTags}
+        onClose={() => setTagEditFriend(null)}
+        onTagsChanged={(fid, tags) => {
+          // モーダル内の楽観状態と一覧を同期。開いているモーダルの対象タグも更新。
+          setTagEditFriend((cur) => (cur && cur.id === fid ? { ...cur, tags } : cur))
+          onTagsChanged?.(fid, tags)
+        }}
+        onTagCreated={onTagCreated}
       />
     )}
     </>
