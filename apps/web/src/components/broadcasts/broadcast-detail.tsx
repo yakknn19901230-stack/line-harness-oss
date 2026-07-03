@@ -187,6 +187,15 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
   const raw = broadcast as unknown as Record<string, unknown>
   const accountId = raw.lineAccountId as string | null
 
+  // #9 プレビュー実名化: {{name}} を仮の名前に置換して「実際に届く文面」を見せる。
+  // 送信データ(messageContent)は変えず、表示だけ差し替える。
+  const PREVIEW_SAMPLE_NAME = '山田 太郎'
+  const hasNameVar = broadcast.messageContent.includes('{{name}}')
+  const previewContent = broadcast.messageContent.replace(/\{\{name\}\}/g, PREVIEW_SAMPLE_NAME)
+  // #8 タグ名表示: targetTagId を tags からタグ名に解決（無ければ ID のまま）。
+  const targetTagName =
+    tags.find((t) => t.id === broadcast.targetTagId)?.name ?? broadcast.targetTagId ?? '-'
+
   return (
     <div>
       <Header
@@ -210,7 +219,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">メッセージプレビュー</h3>
           {broadcast.messageType === 'flex' ? (
-            <FlexPreviewComponent content={broadcast.messageContent} maxWidth={300} />
+            <FlexPreviewComponent content={previewContent} maxWidth={300} />
           ) : broadcast.messageType === 'image' ? (
             (() => {
               try {
@@ -220,8 +229,13 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
             })()
           ) : (
             <div className="bg-green-500 text-white rounded-2xl rounded-tl-sm px-4 py-3 max-w-[300px] text-sm whitespace-pre-wrap">
-              {broadcast.messageContent}
+              {previewContent}
             </div>
+          )}
+          {hasNameVar && (
+            <p className="text-[11px] text-gray-400 mt-2">
+              プレビューでは仮の名前（{PREVIEW_SAMPLE_NAME}）を表示しています。実際は各お客様のLINE名に置き換わります。
+            </p>
           )}
         </div>
 
@@ -236,7 +250,7 @@ export default function BroadcastDetail({ broadcastId }: BroadcastDetailProps) {
             <div className="flex justify-between">
               <dt className="text-gray-500">対象</dt>
               <dd className="text-gray-900">
-                {broadcast.targetType === 'all' ? '全員' : `タグ: ${broadcast.targetTagId ?? '-'}`}
+                {broadcast.targetType === 'all' ? '全員' : `タグ: ${targetTagName}`}
                 {targetCount != null && <span className="ml-1 text-gray-500">({targetCount.toLocaleString('ja-JP')}人)</span>}
               </dd>
             </div>

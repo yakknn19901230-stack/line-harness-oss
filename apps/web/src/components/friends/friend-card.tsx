@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import type { FriendListItem } from '@/lib/api'
 import TagBadge from './tag-badge'
 import { metaDate, getContracts, toSlashDate } from './friend-list-row'
+import { latestNotePreview } from './customer-notes'
 
 interface Props {
   friend: FriendListItem
@@ -24,6 +25,7 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
   const meta = (friend.metadata ?? {}) as Record<string, unknown>
   const birthday = metaDate(meta.birthday)
   const contracts = getContracts(meta)
+  const notePreview = latestNotePreview(meta)
 
   return (
     <div className="border-b border-gray-100 p-4">
@@ -79,6 +81,13 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
             ))}
             {contracts.length > 3 && <p className="text-gray-500">ほか{contracts.length - 3}件</p>}
           </div>
+        )}
+
+        {/* 最新メモ（あれば1行プレビュー） */}
+        {notePreview && (
+          <p className="text-xs text-gray-500 mt-2 line-clamp-1 break-all">
+            <span className="text-gray-400">📝 </span>{notePreview}
+          </p>
         )}
 
         {/* 直近の受信メッセージ（あれば1行） */}

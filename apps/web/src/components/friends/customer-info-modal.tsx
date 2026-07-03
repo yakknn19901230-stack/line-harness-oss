@@ -3,6 +3,14 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import DateInput, { storedToDisplay, displayToStored } from './date-input'
+import {
+  parseNotes,
+  parseFollowups,
+  todayYmd,
+  ymdToSlash,
+  type CustomerNote,
+  type Followup,
+} from './customer-notes'
 
 interface Props {
   friendId: string
@@ -66,6 +74,14 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
   const [contracts, setContracts] = useState<ContractRow[]>([])
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  // 面談メモ（追記式・新しい順）と、その入力欄
+  const [notes, setNotes] = useState<CustomerNote[]>([])
+  const [noteDraft, setNoteDraft] = useState('')
+  // 次回フォロー予定と、その入力欄（日付は表示用 YYYY/MM/DD）
+  const [followups, setFollowups] = useState<Followup[]>([])
+  const [fuDate, setFuDate] = useState('')
+  const [fuNote, setFuNote] = useState('')
+  const [fuError, setFuError] = useState('')
   // 保存を試みたか。日付の赤枠（不正時）を出すのは保存試行後だけにする。
   const [attempted, setAttempted] = useState(false)
   // 開いた時点で friend が既にリンク済みの user_id（あれば）。二重リンクを避けるため。
@@ -95,6 +111,8 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
           setContracts(loadContracts(meta))
           setPhone(asString(meta.phone))
           setEmail(asString(meta.email))
+          setNotes(parseNotes(meta))
+          setFollowups(parseFollowups(meta))
           setLinkedUserId(res.data.userId ?? null)
         } else {
           setError('顧客情報の読み込みに失敗しました')
@@ -115,6 +133,31 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
   const removeContract = (idx: number) => setContracts((cs) => cs.filter((_, i) => i !== idx))
   const updateContract = (idx: number, patch: Partial<ContractRow>) =>
     setContracts((cs) => cs.map((c, i) => (i === idx ? { ...c, ...patch } : c)))
+
+  // 面談メモを追記（日付つきで先頭＝新しい順に積む）。保存は「保存する」で確定。
+  const addNote = () => {
+    const text = noteDraft.trim()
+    if (text === '') return
+    setNotes((ns) => [{ date: todayYmd(), text }, ...ns])
+    setNoteDraft('')
+  }
+  const removeNote = (idx: number) => setNotes((ns) => ns.filter((_, i) => i !== idx))
+
+  // 次回フォローを追加（日付は必須・妥当性チェック、ひとことは任意）。
+  const addFollowup = () => {
+    const parsed = displayToStored(fuDate)
+    if (!parsed.ok || parsed.value === '') {
+      setFuError('日付を YYYY/MM/DD の形式で入力してください（例: 2026/12/01）')
+      return
+    }
+    setFollowups((fs) => [...fs, { date: parsed.value, note: fuNote.trim(), done: false }])
+    setFuDate('')
+    setFuNote('')
+    setFuError('')
+  }
+  const removeFollowup = (idx: number) => setFollowups((fs) => fs.filter((_, i) => i !== idx))
+  const toggleFollowupDone = (idx: number) =>
+    setFollowups((fs) => fs.map((f, i) => (i === idx ? { ...f, done: !f.done } : f)))
 
   /**
    * 連絡先から UUID リンクを張る（ベストエフォート）。
@@ -184,12 +227,23 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
       const phoneVal = phone.trim()
 
       // 1) metadata 保存。旧 renewal_date（単一キー）は contracts へ移行済みなので削除(null)。
+      // 未確定の入力欄（メモ・フォロー）が残っていれば取りこぼさず保存に含める。
+      const notesPayload =
+        noteDraft.trim() !== '' ? [{ date: todayYmd(), text: noteDraft.trim() }, ...notes] : notes
+      let followupsPayload = followups
+      const pendingFu = displayToStored(fuDate)
+      if (pendingFu.ok && pendingFu.value !== '') {
+        followupsPayload = [...followups, { date: pendingFu.value, note: fuNote.trim(), done: false }]
+      }
+
       const res = await api.friends.updateMetadata(friendId, {
         birthday: bd.value || null,
         contracts: contractsPayload,
         renewal_date: null,
         phone: phoneVal || null,
         email: emailVal || null,
+        notes: notesPayload,
+        followups: followupsPayload,
       })
       if (!res.success) {
         setError(res.error || '保存に失敗しました')
@@ -304,6 +358,117 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
                 >
                   <span className="text-lg leading-none">＋</span>契約を追加
                 </button>
+              </section>
+
+              {/* === 面談メモ === */}
+              <section className="space-y-2">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">メモ</h3>
+                <p className="text-[11px] text-gray-400">
+                  面談で聞いた話やライフイベントを残せます。追記すると日付つきで下に積まれます（新しい順）。
+                </p>
+                <div className="flex items-start gap-2">
+                  <textarea
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    placeholder="例: お子さんが生まれる予定（秋ごろ）"
+                    rows={2}
+                    className="w-full flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                  />
+                  <button
+                    type="button"
+                    onClick={addNote}
+                    disabled={noteDraft.trim() === ''}
+                    className="shrink-0 min-h-[44px] px-4 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-opacity"
+                    style={{ backgroundColor: '#14283F' }}
+                  >
+                    追記
+                  </button>
+                </div>
+                {notes.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-1">まだメモはありません。</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {notes.map((n, idx) => (
+                      <li key={idx} className="flex items-start gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] text-gray-400">{ymdToSlash(n.date) || '日付なし'}</p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{n.text}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeNote(idx)}
+                          aria-label="このメモを削除"
+                          className="shrink-0 w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              {/* === 次回フォロー === */}
+              <section className="space-y-2">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">次回フォロー</h3>
+                <p className="text-[11px] text-gray-400">
+                  「いつ・何をするか」を予定として残せます。期日が来たらダッシュボードの「今日のフォロー予定」に出ます。
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                  <DateInput
+                    value={fuDate}
+                    onChange={setFuDate}
+                    ariaLabel="フォロー予定日"
+                    className="w-full sm:w-[9.5rem]"
+                  />
+                  <input
+                    type="text"
+                    value={fuNote}
+                    onChange={(e) => setFuNote(e.target.value)}
+                    placeholder="例: 点検の連絡"
+                    className="w-full sm:flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={addFollowup}
+                    className="shrink-0 min-h-[44px] px-4 rounded-lg text-sm font-medium text-white transition-opacity"
+                    style={{ backgroundColor: '#14283F' }}
+                  >
+                    追加
+                  </button>
+                </div>
+                {fuError && <p className="text-xs text-red-600">{fuError}</p>}
+                {followups.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-1">まだフォロー予定はありません。</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {followups.map((f, idx) => (
+                      <li key={idx} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={f.done}
+                          onChange={() => toggleFollowupDone(idx)}
+                          aria-label="済みにする"
+                          className="shrink-0 w-5 h-5 accent-brand"
+                        />
+                        <div className={`min-w-0 flex-1 ${f.done ? 'opacity-50' : ''}`}>
+                          <p className={`text-sm ${f.done ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                            {ymdToSlash(f.date) || '日付なし'}
+                            {f.note ? <span className="text-gray-600">　{f.note}</span> : null}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFollowup(idx)}
+                          aria-label="このフォロー予定を削除"
+                          className="shrink-0 w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
 
               {/* === 連絡先 === */}

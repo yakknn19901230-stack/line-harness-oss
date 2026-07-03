@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import type { FriendListItem } from '@/lib/api'
 import TagBadge from './tag-badge'
+import { latestNotePreview } from './customer-notes'
 
 interface Props {
   friend: FriendListItem
@@ -35,6 +36,7 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
   const meta = (friend.metadata ?? {}) as Record<string, unknown>
   const birthday = metaDate(meta.birthday)
   const contracts = getContracts(meta)
+  const notePreview = latestNotePreview(meta)
 
   return (
     <div
@@ -122,6 +124,11 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
           </>
         ) : (
           <span className="text-xs text-gray-400">受信なし</span>
+        )}
+        {notePreview && (
+          <p className="text-[11px] text-gray-500 mt-1 line-clamp-1 break-all">
+            <span className="text-gray-400">📝 </span>{notePreview}
+          </p>
         )}
       </div>
 

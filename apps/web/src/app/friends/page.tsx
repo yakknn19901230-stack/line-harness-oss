@@ -8,6 +8,7 @@ import Header from '@/components/layout/header'
 import FriendListTable from '@/components/friends/friend-list-table'
 import BirthdayPanel from '@/components/friends/birthday-panel'
 import RenewalPanel from '@/components/friends/renewal-panel'
+import FollowupPanel from '@/components/friends/followup-panel'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
 
@@ -157,6 +158,13 @@ export default function FriendsPage() {
 
       {/* 契約更新が近い顧客（誕生日パネルと同じ全件取得・判定パターン） */}
       <RenewalPanel
+        accountId={selectedAccountId}
+        refreshKey={birthdayRefreshKey}
+        onToast={showToast}
+      />
+
+      {/* 今日のフォロー予定（次回フォローの期日到来分） */}
+      <FollowupPanel
         accountId={selectedAccountId}
         refreshKey={birthdayRefreshKey}
         onToast={showToast}
