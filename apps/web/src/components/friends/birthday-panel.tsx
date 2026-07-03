@@ -120,6 +120,7 @@ export default function BirthdayPanel({ friends, loading, error, onToast, onChan
   return (
     <PanelShell
       title="🎂 今週の誕生日"
+      description="今週誕生日を迎える友だちが自動で出ます。お祝いを送ると消えます"
       loading={loading}
       count={upcoming.length}
       unit="人"

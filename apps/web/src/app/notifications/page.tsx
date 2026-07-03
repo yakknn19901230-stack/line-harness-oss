@@ -137,7 +137,7 @@ export default function InboxPage() {
     <div className="space-y-6">
       <Header
         title="未対応インボックス"
-        description="人間が返事してない LINE 会話の triage。auto_reply は人間の返事に数えない。"
+        description="お客様からの返信にまだ返せていない会話の一覧です。返信すると消えます"
       />
 
       <InboxSummaryBar

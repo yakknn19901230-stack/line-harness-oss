@@ -10,6 +10,7 @@ import FlexPreviewComponent from '@/components/flex-preview'
 import FriendInfoSidebar from '@/components/chats/friend-info-sidebar'
 import ImageUploader, { type ImageUploaderValue } from '@/components/shared/image-uploader'
 import SceneInsertButton from '@/components/chats/scene-insert-button'
+import MemoHintButton from '@/components/chats/memo-hint-button'
 import { MESSAGE_SCENES, renderSceneMessage } from '@/components/friends/message-scenes'
 
 interface Chat {
@@ -1089,9 +1090,13 @@ export default function ChatsPage() {
                     <span>Shift+Enter</span>
                   </label>
                 </div>
-                {/* 場面から選ぶ（message-scenes の5場面を名前差し込みで入力欄へ） */}
+                {/* 場面から選ぶ（message-scenes の場面を名前差し込みで入力欄へ）＋面談メモの参照 */}
                 <div className="mb-2">
-                  <SceneInsertButton friendName={chatDetail.friendName} onInsert={insertScene} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SceneInsertButton friendName={chatDetail.friendName} onInsert={insertScene} />
+                    <MemoHintButton friendId={chatDetail.friendId} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5">よく使う文面を呼び出せます。挿入後に自由に編集できます</p>
                 </div>
                 <div className="mb-2">
                   <ImageUploader

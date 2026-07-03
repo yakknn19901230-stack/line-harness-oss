@@ -125,6 +125,7 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
   return (
     <PanelShell
       title="📌 今日のフォロー予定"
+      description="顧客カルテの『次回フォロー予定』が期日になると出ます"
       loading={loading}
       count={due.length}
       unit="件"

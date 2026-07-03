@@ -128,6 +128,7 @@ export default function ScenariosPage() {
     <div>
       <Header
         title="シナリオ配信"
+        description="登録後の経過日数に合わせて、決めた順番でメッセージを自動で届けます。"
         action={
           <button
             onClick={() => setPickerOpen(true)}

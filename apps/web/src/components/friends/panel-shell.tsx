@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 interface Props {
   /** 見出し（絵文字込み。例: "🎂 今週の誕生日"） */
   title: string
+  /** 見出し直下に常時表示する1行説明（薄いグレー・小さめ）。折りたたみ時も表示。 */
+  description?: string
   loading?: boolean
   /** 件数（>0 でピル表示）。unit と組み合わせて "5 人" 等 */
   count?: number
@@ -25,6 +27,7 @@ interface Props {
  */
 export default function PanelShell({
   title,
+  description,
   loading = false,
   count = 0,
   unit = '人',
@@ -75,10 +78,15 @@ export default function PanelShell({
       </button>
 
       {/* PC: 固定見出し */}
-      <div className="hidden lg:flex items-center gap-2 mb-3">
+      <div className={`hidden lg:flex items-center gap-2 ${description ? 'mb-1' : 'mb-3'}`}>
         <span className="text-sm font-semibold text-gray-800">{title}</span>
         {loading ? spinner : pill}
       </div>
+
+      {/* 見出し直下の説明（常時表示・折りたたみに影響されない）。 */}
+      {description && (
+        <p className="text-xs text-gray-500 mt-1 lg:mt-0 lg:mb-3">{description}</p>
+      )}
 
       {/* 中身: スマホは開いている時のみ / PC は常時 */}
       <div className={`${openMobile ? 'block mt-3' : 'hidden'} lg:block lg:mt-0`}>

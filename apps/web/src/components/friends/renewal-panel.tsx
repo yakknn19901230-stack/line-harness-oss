@@ -129,6 +129,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
   return (
     <PanelShell
       title="🔔 契約更新が近い顧客"
+      description="60日以内に更新日を迎える契約が自動で出ます。ご案内を送ると消えます"
       loading={loading}
       count={upcoming.length}
       unit="件"

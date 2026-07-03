@@ -367,6 +367,22 @@ export default function Sidebar() {
           </div>
           )
         })}
+
+        {/* 使い方（最下部・全モード共通で表示）。設定セクションの下に置く。 */}
+        <div className="pt-4 mt-2 border-t border-white/10">
+          <Link
+            href="/guide"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              isActive('/guide')
+                ? 'text-brand'
+                : 'text-cream/70 hover:bg-white/10 hover:text-cream'
+            }`}
+            style={isActive('/guide') ? { backgroundColor: '#E8B44A' } : {}}
+          >
+            <NavIcon d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.247m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.247" />
+            <span className="flex-1">使い方</span>
+          </Link>
+        </div>
       </nav>
 
       {/* フッター */}

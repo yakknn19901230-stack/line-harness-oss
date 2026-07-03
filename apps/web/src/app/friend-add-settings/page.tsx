@@ -181,7 +181,7 @@ export default function FriendAddSettingsPage() {
     <div className="min-h-screen bg-gray-50">
       <Header
         title="友だち追加時設定"
-        description="各 LINE アカウントに友だち追加した瞬間に何が配信されるかを管理します。アクティブなシナリオが0件のアカウントは新規友だちに何も届きません。"
+        description="友だちが増えたときに、最初に自動で送るあいさつメッセージを設定できます。"
       />
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">

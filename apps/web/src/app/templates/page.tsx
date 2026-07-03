@@ -221,6 +221,7 @@ export default function TemplatesPage() {
     <div>
       <Header
         title="テンプレート管理"
+        description="よく使う文面をあらかじめ登録して、配信のときに呼び出せます。"
         action={
           <button
             onClick={() => setShowCreate(true)}
