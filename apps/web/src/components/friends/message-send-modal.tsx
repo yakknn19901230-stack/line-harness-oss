@@ -7,6 +7,9 @@ import {
   DEFAULT_SCENE_ID,
   findScene,
   renderSceneMessage,
+  hasVariants,
+  type MessageScene,
+  type SceneVariant,
 } from './message-scenes'
 
 // セッション内の送信記録（当日のみ有効・ページ再読込で消える。二重送信抑止用）。
@@ -46,7 +49,10 @@ export default function MessageSendModal({
 }: Props) {
   const firstScene = findScene(initialSceneId ?? DEFAULT_SCENE_ID)
   const [selectedSceneId, setSelectedSceneId] = useState(firstScene.id)
-  const [message, setMessage] = useState(() => renderSceneMessage(firstScene.template, friendName))
+  // バリアントを持つ場面を選んだとき、枝分かれ選択肢を出す対象の場面ID（null で非表示）。
+  const [variantSceneId, setVariantSceneId] = useState<string | null>(null)
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
+  const [message, setMessage] = useState(() => renderSceneMessage(firstScene.template ?? '', friendName))
   // textarea を手編集したか。チップ切替時に「破棄して差し替えるか」を確認するために使う。
   const [edited, setEdited] = useState(false)
   const [sending, setSending] = useState(false)
@@ -73,16 +79,39 @@ export default function MessageSendModal({
     }
   }, [])
 
-  const selectScene = (sceneId: string) => {
-    if (sceneId === selectedSceneId) return
-    // 手編集済みの内容がある状態で別の場面に切り替えるときは確認を挟む。
+  // 手編集済みの内容がある状態で差し替えるときは確認を挟む。
+  const confirmDiscardIfEdited = () => {
     if (edited && message.trim() !== '') {
-      const ok = window.confirm('編集中の内容を破棄して差し替えますか？')
-      if (!ok) return
+      return window.confirm('編集中の内容を破棄して差し替えますか？')
     }
-    const scene = findScene(sceneId)
-    setMessage(renderSceneMessage(scene.template, friendName))
+    return true
+  }
+
+  const selectScene = (scene: MessageScene) => {
+    // バリアントを持つ場面: 本文は変えず、枝分かれ選択肢を出す（実挿入はバリアント選択時）。
+    if (hasVariants(scene)) {
+      setSelectedSceneId(scene.id)
+      setVariantSceneId(scene.id)
+      setError('')
+      cancelConfirm()
+      return
+    }
+    if (scene.id === selectedSceneId && variantSceneId === null) return
+    if (!confirmDiscardIfEdited()) return
+    setMessage(renderSceneMessage(scene.template ?? '', friendName))
     setSelectedSceneId(scene.id)
+    setSelectedVariantId(null)
+    setVariantSceneId(null)
+    setEdited(false)
+    setError('')
+    cancelConfirm()
+  }
+
+  const selectVariant = (scene: MessageScene, variant: SceneVariant) => {
+    if (!confirmDiscardIfEdited()) return
+    setMessage(renderSceneMessage(variant.template, friendName))
+    setSelectedSceneId(scene.id)
+    setSelectedVariantId(variant.id)
     setEdited(false)
     setError('')
     cancelConfirm()
@@ -156,7 +185,7 @@ export default function MessageSendModal({
                     <button
                       key={scene.id}
                       type="button"
-                      onClick={() => selectScene(scene.id)}
+                      onClick={() => selectScene(scene)}
                       aria-pressed={active}
                       className={`px-3.5 py-2 rounded-full text-sm font-medium border transition-colors ${
                         active
@@ -165,11 +194,42 @@ export default function MessageSendModal({
                       }`}
                       style={active ? { backgroundColor: '#14283F' } : undefined}
                     >
-                      {scene.label}
+                      {scene.label}{hasVariants(scene) ? ' ›' : ''}
                     </button>
                   )
                 })}
               </div>
+
+              {/* バリアント（枝分かれ）選択肢。バリアントを持つ場面を選んだときのみ表示。 */}
+              {(() => {
+                const vScene = variantSceneId ? findScene(variantSceneId) : null
+                if (!vScene || !hasVariants(vScene)) return null
+                return (
+                  <div className="mt-2 pl-2 border-l-2 border-accent/50">
+                    <p className="text-[11px] text-gray-500 mb-1.5">「{vScene.label}」の状況を選ぶ</p>
+                    <div className="flex flex-wrap gap-2">
+                      {vScene.variants!.map((v) => {
+                        const vActive = selectedVariantId === v.id && selectedSceneId === vScene.id
+                        return (
+                          <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => selectVariant(vScene, v)}
+                            aria-pressed={vActive}
+                            className={`px-3 py-2 rounded-full text-sm font-medium border transition-colors ${
+                              vActive
+                                ? 'text-brand border-accent bg-accent/20'
+                                : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {v.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             {/* メッセージ本文 */}

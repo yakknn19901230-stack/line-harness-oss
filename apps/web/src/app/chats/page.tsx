@@ -469,9 +469,11 @@ export default function ChatsPage() {
     const key = `${chatDetail.id}:${sceneId}`
     if (presetAppliedRef.current === key) return
     const scene = MESSAGE_SCENES.find((s) => s.id === sceneId)
-    if (!scene) return
+    // バリアントを持つ場面（単一文面なし）はプリセット対象外（枝分かれ選択が必要なため）。
+    if (!scene || !scene.template) return
     presetAppliedRef.current = key
-    setMessageContent((prev) => (prev.trim() === '' ? renderSceneMessage(scene.template, chatDetail.friendName) : prev))
+    const template = scene.template
+    setMessageContent((prev) => (prev.trim() === '' ? renderSceneMessage(template, chatDetail.friendName) : prev))
   }, [chatDetail])
 
   // Surface deep-linked chats in the sidebar even when the current account
