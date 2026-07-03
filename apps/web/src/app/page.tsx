@@ -9,6 +9,7 @@ import RenewalPanel from '@/components/friends/renewal-panel'
 import FollowupPanel from '@/components/friends/followup-panel'
 import TodaysWorkMeter from '@/components/friends/todays-work-meter'
 import { useAllFriends } from '@/hooks/use-all-friends'
+import { isSimpleMode } from '@/lib/simple-mode'
 import { useAccount } from '@/contexts/account-context'
 
 // ダッシュボードの表示制御フラグ（後で戻せるように集約。false=非表示。
@@ -106,6 +107,8 @@ export default function DashboardPage() {
   const bumpWork = () => setWorkKey((k) => k + 1)
   // 「今日の保全」の3パネル＋メーターは、この1回の取得を共有する（従来は各自が全件取得）。
   const todaysWork = useAllFriends(selectedAccountId, workKey)
+  // SIMPLE_MODE では統計カードを「友だち数」だけにし、クイックアクションを隠す。
+  const simple = isSimpleMode()
 
   useEffect(() => {
     const load = async () => {
@@ -214,6 +217,7 @@ export default function DashboardPage() {
             </svg>
           }
         />
+        {!simple && (
         <StatCard
           title="アクティブシナリオ数"
           value={stats.activeScenarioCount}
@@ -227,6 +231,8 @@ export default function DashboardPage() {
             </svg>
           }
         />
+        )}
+        {!simple && (
         <StatCard
           title="配信数 (合計)"
           value={stats.broadcastCount}
@@ -240,9 +246,11 @@ export default function DashboardPage() {
             </svg>
           }
         />
+        )}
       </div>
 
       {/* Round 3 summary cards */}
+      {!simple && (
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         <StatCard
           title="テンプレート数"
@@ -288,8 +296,10 @@ export default function DashboardPage() {
           />
         )}
       </div>
+      )}
 
       {/* Quick links */}
+      {!simple && (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-sm font-semibold text-gray-800 mb-4">クイックアクション</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -376,6 +386,7 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      )}
 
       <CcPromptButton prompts={ccPrompts} />
 

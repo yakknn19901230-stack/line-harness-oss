@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useAccount } from '@/contexts/account-context'
 import type { AccountWithStats } from '@/contexts/account-context'
 import { countryFlag } from '@/lib/country-flag'
+import { isSimpleMode } from '@/lib/simple-mode'
 
 const appVersion = process.env.APP_VERSION || '0.0.0'
 const appCommitSha = process.env.APP_COMMIT_SHA || 'local'
@@ -74,6 +75,40 @@ const menuSections = [
       { href: '/health', label: 'BAN検知', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
       { href: '/updates', label: 'アップデート履歴', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
       { href: '/emergency', label: '緊急コントロール', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z', danger: true },
+    ],
+  },
+]
+
+// SIMPLE_MODE 用のメニュー。文言・アイコンは本家の定義を使い回し（複製しない）、
+// 表示項目と並び順だけを差し替える。ルーティングは殺さない（URL直打ちは可）。
+const itemByHref = Object.fromEntries(
+  menuSections.flatMap((s) => s.items).map((it) => [it.href, it]),
+) as Record<string, (typeof menuSections)[number]['items'][number]>
+
+const simpleMenuSections = [
+  {
+    label: null,
+    items: [
+      itemByHref['/'],
+      itemByHref['/friends'],
+      itemByHref['/chats'],
+      itemByHref['/notifications'], // 「未対応」を自動化セクションからここへ移動（SIMPLE時のみ）
+    ],
+  },
+  {
+    label: '配信',
+    items: [
+      itemByHref['/friend-add-settings'],
+      itemByHref['/scenarios'],
+      itemByHref['/broadcasts'],
+      itemByHref['/templates'],
+    ],
+  },
+  {
+    label: '設定',
+    items: [
+      itemByHref['/accounts'],
+      itemByHref['/staff'],
     ],
   },
 ]
@@ -240,6 +275,9 @@ export default function Sidebar() {
 
   const isActive = (href: string) => href === '/' ? pathname === '/' : pathname.startsWith(href)
 
+  // SIMPLE_MODE では絞り込んだメニューに差し替える（本家の並びには手を付けない）。
+  const sections = isSimpleMode() ? simpleMenuSections : menuSections
+
   const sidebarContent = (
     <>
       {/* ロゴ */}
@@ -260,10 +298,18 @@ export default function Sidebar() {
 
       {/* ナビゲーション */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {menuSections.map((section, si) => {
+        {sections.map((section, si) => {
           const collapsible = 'collapsible' in section && section.collapsible
           const sectionOpen = section.label ? !!openSections[section.label] : true
           const showItems = !collapsible || sectionOpen
+          // ロール（staff/owner）で消える項目を除いた実表示件数。空セクションは
+          // 見出しごと表示しない。
+          const visibleItems = section.items.filter((item) => {
+            if (item.href === '/staff' && staffRole !== 'owner') return false
+            if (item.href === '/accounts' && staffRole === 'staff') return false
+            return true
+          })
+          if (visibleItems.length === 0) return null
           return (
           <div key={si}>
             {section.label && (
@@ -288,11 +334,7 @@ export default function Sidebar() {
                 </div>
               )
             )}
-            {showItems && section.items.filter((item) => {
-              if (item.href === '/staff' && staffRole !== 'owner') return false
-              if (item.href === '/accounts' && staffRole === 'staff') return false
-              return true
-            }).map((item) => {
+            {showItems && visibleItems.map((item) => {
               const active = isActive(item.href)
               const isDanger = 'danger' in item && item.danger
               return (
