@@ -7,6 +7,7 @@ import CcPromptButton from '@/components/cc-prompt-button'
 import BirthdayPanel from '@/components/friends/birthday-panel'
 import RenewalPanel from '@/components/friends/renewal-panel'
 import FollowupPanel from '@/components/friends/followup-panel'
+import TodaysWorkMeter from '@/components/friends/todays-work-meter'
 import { useAccount } from '@/contexts/account-context'
 
 // ダッシュボードの表示制御フラグ（後で戻せるように集約。false=非表示。
@@ -99,6 +100,9 @@ export default function DashboardPage() {
     setToast(message)
     window.setTimeout(() => setToast(''), 3000)
   }
+  // パネルで対応済みにしたら increment → 残り件数メーターを再集計させる。
+  const [workKey, setWorkKey] = useState(0)
+  const bumpWork = () => setWorkKey((k) => k + 1)
 
   useEffect(() => {
     const load = async () => {
@@ -187,10 +191,11 @@ export default function DashboardPage() {
         </a>
       )}
 
-      {/* 今日の保全: 今週の誕生日＋契約更新が近い顧客＋今日のフォロー予定（/friends と同じパネルを再利用） */}
-      <BirthdayPanel accountId={selectedAccountId} onToast={showToast} />
-      <RenewalPanel accountId={selectedAccountId} onToast={showToast} />
-      <FollowupPanel accountId={selectedAccountId} onToast={showToast} />
+      {/* 今日の保全: 残り件数メーター＋誕生日／更新／フォローの各パネル */}
+      <TodaysWorkMeter accountId={selectedAccountId} refreshKey={workKey} />
+      <BirthdayPanel accountId={selectedAccountId} onToast={showToast} onChanged={bumpWork} />
+      <RenewalPanel accountId={selectedAccountId} onToast={showToast} onChanged={bumpWork} />
+      <FollowupPanel accountId={selectedAccountId} onToast={showToast} onChanged={bumpWork} />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">

@@ -25,6 +25,8 @@ interface Props {
 interface ContractRow {
   name: string
   renewal_date: string
+  /** 更新パネルの「対応済み」記録（YYYY-MM-DD）。UI では触らず素通しで保持する。 */
+  notifiedAt?: string
 }
 
 /** metadata の値を <input type="date"> 用の YYYY-MM-DD に整える。
@@ -49,7 +51,11 @@ function loadContracts(meta: Record<string, unknown>): ContractRow[] {
     return raw
       .map((c) => {
         const obj = (c ?? {}) as Record<string, unknown>
-        return { name: asString(obj.name), renewal_date: storedToDisplay(toDateInputValue(obj.renewal_date)) }
+        return {
+          name: asString(obj.name),
+          renewal_date: storedToDisplay(toDateInputValue(obj.renewal_date)),
+          notifiedAt: asString(obj.notified_at) || undefined,
+        }
       })
       // 完全に空の行は読み込み時に落とす
       .filter((c) => c.name.trim() !== '' || c.renewal_date !== '')
@@ -219,8 +225,16 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
     setError('')
     try {
       // 契約: 完全に空の行は落として配列化。更新日は YYYY-MM-DD で保存。
+      // notified_at（更新パネルの対応済み記録）は UI で触らず、あれば素通しで保持する。
       const contractsPayload = contractResults
-        .map((cr) => ({ name: cr.name, renewal_date: cr.date.value }))
+        .map((cr, i) => {
+          const notifiedAt = contracts[i]?.notifiedAt
+          return {
+            name: cr.name,
+            renewal_date: cr.date.value,
+            ...(notifiedAt ? { notified_at: notifiedAt } : {}),
+          }
+        })
         .filter((c) => c.name !== '' || c.renewal_date !== '')
 
       const emailVal = email.trim()
