@@ -1135,7 +1135,7 @@ export default function ChatsPage() {
                   <button
                     onClick={handleSendMessage}
                     disabled={sending || (!messageContent.trim() && !pendingImage)}
-                    className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="shrink-0 min-h-[44px] px-5 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#14283F' }}
                   >
                     {sending ? '送信中...' : '送信'}

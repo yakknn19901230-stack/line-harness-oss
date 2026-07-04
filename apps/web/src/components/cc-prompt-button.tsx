@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import PromptModal, { type PromptTemplate } from '@/components/prompt-modal'
+import { isSimpleMode } from '@/lib/simple-mode'
 
 interface CcPromptButtonProps {
   prompts: PromptTemplate[]
@@ -9,6 +10,11 @@ interface CcPromptButtonProps {
 
 export default function CcPromptButton({ prompts }: CcPromptButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
+
+  // 保全くんモード（SIMPLE_MODE）では開発者向けの「CCに依頼」ボタンを出さない。
+  // 機能・依存は残し、描画だけ抑止（フラグでいつでも復帰可能）。モバイルの送信ボタンに
+  // 覆いかぶさる実害を回避する目的。
+  if (isSimpleMode()) return null
 
   return (
     <>

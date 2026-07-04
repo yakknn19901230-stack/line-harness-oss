@@ -9,6 +9,7 @@ import {
   type ReleaseEntry,
 } from '@/lib/update-client'
 import { UpdateButton } from './update-button'
+import { isSimpleMode } from '@/lib/simple-mode'
 
 type Status =
   | { kind: 'loading' }
@@ -22,7 +23,7 @@ export function UpdateBanner() {
   const [status, setStatus] = useState<Status>({ kind: 'loading' })
 
   useEffect(() => {
-    if (!updateBannerEnabled) return
+    if (!updateBannerEnabled || isSimpleMode()) return
 
     let cancelled = false
     ;(async () => {
@@ -62,6 +63,10 @@ export function UpdateBanner() {
       cancelled = true
     }
   }, [])
+
+  // 保全くんモード（SIMPLE_MODE）では、フォーク改造検知バナー等の開発者向け更新UIを
+  // 描画しない（更新エンジン自体は無効化・削除しない。表示だけ抑止＝フラグで復帰可能）。
+  if (isSimpleMode()) return null
 
   if (status.kind === 'loading') return null
 
