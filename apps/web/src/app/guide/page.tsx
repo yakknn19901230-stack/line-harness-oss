@@ -33,6 +33,18 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
   )
 }
 
+/** そのままコピーして使える文例ボックス（本文は改行を保持して表示）。 */
+function Example({ label, body }: { label: string; body: string }) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-gray-900 mb-1">{label}</p>
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{body}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function GuidePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-10">
@@ -53,6 +65,72 @@ export default function GuidePage() {
           「今日は誰に連絡すればよいか」を保全くんが毎日自動で教えてくれます。
           むずかしい設定はいりません。出てきた人に、順番に連絡していくだけです。
         </p>
+      </Section>
+
+      <Section title="お客様に友だち追加してもらうには">
+        <p>
+          お客様に渡す「友だち追加URL」と「QRコード」は、保全くんではなく
+          LINE公式アカウントの管理画面で発行します。まずはそこから受け取りましょう。
+        </p>
+        <ol className="space-y-3">
+          <Step n={1}>
+            ブラウザで <span className="font-medium text-gray-900">manager.line.biz</span> を開き、
+            LINEビジネスIDでログインします（スマホでもパソコンでも可）。
+          </Step>
+          <Step n={2}>
+            アカウント一覧から、自分のアカウント名を選びます。
+          </Step>
+          <Step n={3}>
+            ホームにある「友だちを増やす」（友だち追加ガイド）を開きます。
+          </Step>
+          <Step n={4}>
+            「URLを作成」を押すと、<span className="font-medium text-gray-900">lin.ee</span>{' '}
+            で始まる短いURLをコピーできます。
+          </Step>
+          <Step n={5}>
+            「友だち追加QRコードを作成」を押すと、QRコード画像を保存できます。
+          </Step>
+        </ol>
+        <p className="text-sm text-gray-500">
+          この画面は保全くんではなくLINE公式アカウントの管理画面（LINE Official Account
+          Manager）です。URLとQRコードはそこで発行される仕組みになっています。
+        </p>
+
+        <div className="pt-2">
+          <p className="font-medium text-gray-900 mb-2">運用のコツ</p>
+          <ul className="space-y-2 list-disc pl-5">
+            <li>名刺の裏にQRコードを印刷しておく。渡すだけで案内が終わります。</li>
+            <li>
+              スマホにQRコード画像を保存しておき、面談の最後に画面を見せて、
+              その場で読み取ってもらいます。
+            </li>
+            <li>既存のお客様には、下の文例をコピーしてLINEやメールで送ります。</li>
+          </ul>
+        </div>
+
+        <div className="pt-2 space-y-3">
+          <p className="font-medium text-gray-900">そのまま使える文例</p>
+          <Example
+            label="■ 面談の最後に口頭で伝えるとき"
+            body={'「最後にひとつだけ。今後のご連絡、LINEでいただけると見落としがなくて助かります。このQRコードから追加してもらえますか。」'}
+          />
+          <Example
+            label="■ 既存のお客様にLINEやメールで送るとき"
+            body={
+`〇〇様
+お世話になっております。△△です。
+このたび、保険のご連絡窓口をLINEにご用意しました。更新のお知らせや手続きのご案内をこちらからお送りします。お手数ですが、下のリンクから友だち追加をお願いできますか。
+（ここに友だち追加URLを貼る）
+ご質問などもLINEからどうぞ。お電話より早くお返事できることが多いです。`}
+          />
+          <Example
+            label="■ メールの署名や資料の隅に添えるとき"
+            body={'保険のご相談・お手続きはLINEからどうぞ（友だち追加URL）'}
+          />
+          <p className="text-sm text-gray-500">
+            〇〇様・△△はお客様とご自身の名前に置き換えてください。
+          </p>
+        </div>
       </Section>
 
       <Section title="毎朝の使い方">
