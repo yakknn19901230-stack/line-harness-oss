@@ -14,6 +14,7 @@ import {
 } from '@/components/accounts/account-form-fields'
 import AccountSetupUrls from '@/components/accounts/account-setup-urls'
 import AccountEditModal from '@/components/accounts/account-edit-modal'
+import FriendAddBlock from '@/components/accounts/friend-add-block'
 
 interface LineAccountListItem {
   id: string
@@ -304,6 +305,9 @@ export default function AccountsPage() {
                   LIFF: {account.liffId ? '設定済' : '未設定'}
                 </span>
               </div>
+
+              {/* 友だち追加URL/QR（basicId から組み立て・SIMPLE_MODE でも表示） */}
+              <FriendAddBlock basicId={account.basicId} />
 
               <AccountSettingsSection
                 accountId={account.id}
