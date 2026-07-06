@@ -202,7 +202,9 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
         <MessageSendModal
           friendId={sendTarget.friendId}
           friendName={sendTarget.name}
-          initialSceneId="reconnect"
+          // フォロー予定からは「自由に書く」を既定にし、メモ内容を参考表示する。
+          defaultFree
+          referenceNote={sendTarget.note}
           onClose={() => setSendTarget(null)}
           onSent={(message) => {
             onToast(message)

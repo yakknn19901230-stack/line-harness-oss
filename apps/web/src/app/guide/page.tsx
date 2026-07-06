@@ -69,31 +69,28 @@ export default function GuidePage() {
 
       <Section title="お客様に友だち追加してもらうには">
         <p>
-          お客様に渡す「友だち追加URL」と「QRコード」は、保全くんではなく
-          LINE公式アカウントの管理画面で発行します。まずはそこから受け取りましょう。
+          お客様に渡す「友だち追加URL」と「QRコード」は、設定の
+          <Link href="/accounts" className="text-brand font-medium underline mx-0.5">LINEアカウント</Link>
+          画面に表示されています。
         </p>
         <ol className="space-y-3">
           <Step n={1}>
-            ブラウザで <span className="font-medium text-gray-900">manager.line.biz</span> を開き、
-            LINEビジネスIDでログインします（スマホでもパソコンでも可）。
+            設定の
+            <Link href="/accounts" className="text-brand font-medium underline mx-0.5">LINEアカウント</Link>
+            を開きます。
           </Step>
           <Step n={2}>
-            アカウント一覧から、自分のアカウント名を選びます。
-          </Step>
-          <Step n={3}>
-            ホームにある「友だちを増やす」（友だち追加ガイド）を開きます。
-          </Step>
-          <Step n={4}>
-            「URLを作成」を押すと、<span className="font-medium text-gray-900">lin.ee</span>{' '}
-            で始まる短いURLをコピーできます。
-          </Step>
-          <Step n={5}>
-            「友だち追加QRコードを作成」を押すと、QRコード画像を保存できます。
+            アカウントの「友だち追加」欄にあるURLをコピーするか、「QRを保存」で
+            QRコード画像を保存します。
           </Step>
         </ol>
+        <p>
+          これをお客様にお渡しすれば、タップまたは読み取りで友だち追加してもらえます。
+        </p>
         <p className="text-sm text-gray-500">
-          この画面は保全くんではなくLINE公式アカウントの管理画面（LINE Official Account
-          Manager）です。URLとQRコードはそこで発行される仕組みになっています。
+          名刺印刷などで短いURL（lin.ee）が必要な場合は、LINE公式アカウントの管理画面
+          （manager.line.biz）で発行できます。手順：manager.line.biz にログイン→
+          アカウントを選択→「友だちを増やす」→「URLを作成」または「友だち追加QRコードを作成」。
         </p>
 
         <div className="pt-2">

@@ -24,11 +24,18 @@ function hhmm(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+// 「自由に書く」用の擬似場面ID（MESSAGE_SCENES には含めない）。
+const FREE_ID = 'free'
+
 interface Props {
   friendId: string
   friendName: string
   /** 初期選択する場面ID（一覧からは apo_thanks、誕生日パネルからは birthday）。 */
   initialSceneId?: string
+  /** 開いた直後に「自由に書く」を選択状態にする（フォロー予定からの送信で使用）。 */
+  defaultFree?: boolean
+  /** 本文欄の上に参考表示するメモ（本文には入れない）。フォロー予定のメモ等。 */
+  referenceNote?: string
   onClose: () => void
   /** 送信成功時。呼び出し側でトーストを出す */
   onSent: (message: string) => void
@@ -44,15 +51,22 @@ export default function MessageSendModal({
   friendId,
   friendName,
   initialSceneId,
+  defaultFree = false,
+  referenceNote,
   onClose,
   onSent,
 }: Props) {
   const firstScene = findScene(initialSceneId ?? DEFAULT_SCENE_ID)
-  const [selectedSceneId, setSelectedSceneId] = useState(firstScene.id)
+  const [selectedSceneId, setSelectedSceneId] = useState(defaultFree ? FREE_ID : firstScene.id)
   // バリアントを持つ場面を選んだとき、枝分かれ選択肢を出す対象の場面ID（null で非表示）。
-  const [variantSceneId, setVariantSceneId] = useState<string | null>(null)
+  // 初期選択がバリアント場面（例: アポ後お礼）なら、最初から枝分かれを見せる。
+  const [variantSceneId, setVariantSceneId] = useState<string | null>(
+    !defaultFree && hasVariants(firstScene) ? firstScene.id : null,
+  )
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
-  const [message, setMessage] = useState(() => renderSceneMessage(firstScene.template ?? '', friendName))
+  const [message, setMessage] = useState(() =>
+    defaultFree ? '' : renderSceneMessage(firstScene.template ?? '', friendName),
+  )
   // textarea を手編集したか。チップ切替時に「破棄して差し替えるか」を確認するために使う。
   const [edited, setEdited] = useState(false)
   const [sending, setSending] = useState(false)
@@ -112,6 +126,19 @@ export default function MessageSendModal({
     setMessage(renderSceneMessage(variant.template, friendName))
     setSelectedSceneId(scene.id)
     setSelectedVariantId(variant.id)
+    setEdited(false)
+    setError('')
+    cancelConfirm()
+  }
+
+  // 「自由に書く」: 本文を空にして自由入力にする。
+  const selectFree = () => {
+    if (selectedSceneId === FREE_ID) return
+    if (!confirmDiscardIfEdited()) return
+    setMessage('')
+    setSelectedSceneId(FREE_ID)
+    setSelectedVariantId(null)
+    setVariantSceneId(null)
     setEdited(false)
     setError('')
     cancelConfirm()
@@ -198,6 +225,20 @@ export default function MessageSendModal({
                     </button>
                   )
                 })}
+                {/* 自由に書く（場面チップ列の最後） */}
+                <button
+                  type="button"
+                  onClick={selectFree}
+                  aria-pressed={selectedSceneId === FREE_ID}
+                  className={`px-3.5 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    selectedSceneId === FREE_ID
+                      ? 'text-white border-transparent'
+                      : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+                  }`}
+                  style={selectedSceneId === FREE_ID ? { backgroundColor: '#14283F' } : undefined}
+                >
+                  自由に書く
+                </button>
               </div>
 
               {/* バリアント（枝分かれ）選択肢。バリアントを持つ場面を選んだときのみ表示。 */}
@@ -237,6 +278,13 @@ export default function MessageSendModal({
               <label htmlFor="msg-body" className="block text-sm font-medium text-gray-800 mb-1">
                 メッセージ本文
               </label>
+              {/* フォロー予定などのメモを参考表示（本文には入れない） */}
+              {referenceNote && referenceNote.trim() !== '' && (
+                <div className="mb-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2">
+                  <p className="text-[11px] font-medium text-brand mb-0.5">📌 フォロー予定のメモ（参考）</p>
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">{referenceNote}</p>
+                </div>
+              )}
               <textarea
                 id="msg-body"
                 rows={6}
@@ -248,9 +296,12 @@ export default function MessageSendModal({
                 }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
               />
-              <p className="text-[11px] text-gray-400 mt-1">
-                定型文はそのまま送れますが、相手のことを一言添えると、より気持ちが伝わります😊
-              </p>
+              {/* 「自由に書く」選択時は定型文向けの注意書きを出さない。 */}
+              {selectedSceneId !== FREE_ID && (
+                <p className="text-[11px] text-gray-400 mt-1">
+                  定型文はそのまま送れますが、相手のことを一言添えると、より気持ちが伝わります😊
+                </p>
+              )}
             </div>
 
             {error && (

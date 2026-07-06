@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/layout/header'
 import { fetchApi } from '@/lib/api'
+import { isSimpleMode } from '@/lib/simple-mode'
 import type { ApiResponse } from '@line-crm/shared'
 import type { StaffMember } from '@line-crm/shared'
 
@@ -145,6 +146,26 @@ export default function StaffPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  // ログイン案内のコピー（URL は window.location.origin を使い、ハードコードしない
+  // ＝サブドメイン展開に備える）。キー付き＝発行直後の案内、URL のみ＝一覧の行。
+  const buildLoginInfo = (key: string) =>
+    `保全くんのログイン情報です。\nURL:${window.location.origin}\nAPIキー:${key}\nURLを開いてAPIキーを入力するとログインできます。\nキーは他の人に渡さないでください。`
+
+  const [copiedInfo, setCopiedInfo] = useState(false)
+  const handleCopyLoginInfo = async () => {
+    if (!newKey) return
+    await navigator.clipboard.writeText(buildLoginInfo(newKey.apiKey))
+    setCopiedInfo(true)
+    setTimeout(() => setCopiedInfo(false), 2000)
+  }
+
+  const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null)
+  const handleCopyLoginUrl = async (id: string) => {
+    await navigator.clipboard.writeText(window.location.origin)
+    setCopiedUrlId(id)
+    setTimeout(() => setCopiedUrlId(null), 2000)
+  }
+
   return (
     <div>
       <Header
@@ -177,12 +198,22 @@ export default function StaffPage() {
               {copied ? 'コピー済み' : 'コピー'}
             </button>
             <button
+              onClick={handleCopyLoginInfo}
+              className="shrink-0 px-3 py-2 text-xs font-medium text-white rounded-lg transition-opacity hover:opacity-90"
+              style={{ backgroundColor: '#14283F' }}
+            >
+              {copiedInfo ? 'コピー済み' : 'ログイン案内をコピー'}
+            </button>
+            <button
               onClick={() => setNewKey(null)}
               className="shrink-0 px-3 py-2 text-xs font-medium text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               閉じる
             </button>
           </div>
+          <p className="text-[11px] text-green-700 mt-2">
+            「ログイン案内をコピー」を押すと、ログインURL・APIキー・使い方をまとめて本人へ送れます。
+          </p>
         </div>
       )}
 
@@ -215,14 +246,21 @@ export default function StaffPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">ロール *</label>
-                <select
-                  value={formRole}
-                  onChange={(e) => setFormRole(e.target.value as 'admin' | 'staff')}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="staff">スタッフ</option>
-                  <option value="admin">管理者</option>
-                </select>
+                {isSimpleMode() ? (
+                  // 保全くんモードでは権限は「スタッフ」に固定（管理者の選択肢は出さない）。
+                  <div className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                    スタッフ
+                  </div>
+                ) : (
+                  <select
+                    value={formRole}
+                    onChange={(e) => setFormRole(e.target.value as 'admin' | 'staff')}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="staff">スタッフ</option>
+                    <option value="admin">管理者</option>
+                  </select>
+                )}
               </div>
             </div>
             {formError && (
@@ -307,6 +345,12 @@ export default function StaffPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleCopyLoginUrl(member.id)}
+                        className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                      >
+                        {copiedUrlId === member.id ? 'コピー済み' : 'ログインURLをコピー'}
+                      </button>
                       {member.role !== 'owner' && (
                         <>
                           <button

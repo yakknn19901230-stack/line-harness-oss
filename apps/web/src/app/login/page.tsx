@@ -88,7 +88,7 @@ export default function LoginPage() {
               autoFocus
             />
             <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-              導入時にお渡ししたAPIキーを入力してください。不明な場合は担当者にお問い合わせください。
+              担当者からお渡ししたAPIキーを入力してください。不明な場合は担当者にお問い合わせください。
             </p>
           </div>
 

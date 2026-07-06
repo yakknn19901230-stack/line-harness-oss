@@ -28,6 +28,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         if (data.data.name) localStorage.setItem('lh_staff_name', data.data.name)
         if (data.data.role) localStorage.setItem('lh_staff_role', data.data.role)
         if (data.csrfToken) localStorage.setItem('lh_csrf', data.csrfToken)
+        // クライアント側ロールガード: staff はオーナー専用画面（スタッフ管理・
+        // LINEアカウント）を開けない。URL 直打ちでもエラー画面ではなく
+        // ダッシュボードへ戻す（サーバー側は 403 で別途保護済み）。
+        const ownerOnly =
+          pathname === '/staff' || pathname.startsWith('/staff/') ||
+          pathname === '/accounts' || pathname.startsWith('/accounts/')
+        if (data.data.role === 'staff' && ownerOnly) {
+          if (!cancelled) router.replace('/')
+          return
+        }
         if (!cancelled) setChecked(true)
       } catch {
         if (!cancelled) router.replace('/login')
