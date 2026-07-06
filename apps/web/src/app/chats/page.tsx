@@ -11,7 +11,7 @@ import FriendInfoSidebar from '@/components/chats/friend-info-sidebar'
 import ImageUploader, { type ImageUploaderValue } from '@/components/shared/image-uploader'
 import SceneInsertButton from '@/components/chats/scene-insert-button'
 import MemoHintButton from '@/components/chats/memo-hint-button'
-import { MESSAGE_SCENES, renderSceneMessage } from '@/components/friends/message-scenes'
+import { MESSAGE_SCENES, renderSceneMessage, isSceneText } from '@/components/friends/message-scenes'
 
 interface Chat {
   id: string
@@ -453,9 +453,15 @@ export default function ChatsPage() {
     }
   }, [selectedChatId, loadChatDetail])
 
-  // 場面文面を入力欄へ挿入する。既存入力があるときは上書きせず末尾に追記（ロスなし）。
+  // 場面文面を入力欄へ「置き換え」で挿入する（追記はしない）。
+  // 空 or 未編集（いずれかの定型文と一致）なら黙って置き換え、編集済みなら確認する。
   const insertScene = (text: string) => {
-    setMessageContent((prev) => (prev.trim() === '' ? text : `${prev}\n${text}`))
+    const prev = messageContent
+    const name = chatDetail?.friendName ?? ''
+    if (prev.trim() !== '' && !isSceneText(prev, name)) {
+      if (!window.confirm('入力中の文面を置き換えますか？')) return
+    }
+    setMessageContent(text)
     requestAnimationFrame(() => textareaRef.current?.focus())
   }
 

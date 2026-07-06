@@ -8,6 +8,7 @@ import {
   findScene,
   renderSceneMessage,
   hasVariants,
+  isSceneText,
   type MessageScene,
   type SceneVariant,
 } from './message-scenes'
@@ -67,8 +68,6 @@ export default function MessageSendModal({
   const [message, setMessage] = useState(() =>
     defaultFree ? '' : renderSceneMessage(firstScene.template ?? '', friendName),
   )
-  // textarea を手編集したか。チップ切替時に「破棄して差し替えるか」を確認するために使う。
-  const [edited, setEdited] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   // 2段階送信: 1回目のクリックで確定待ちにし、2回目で実送信。
@@ -93,10 +92,11 @@ export default function MessageSendModal({
     }
   }, [])
 
-  // 手編集済みの内容がある状態で差し替えるときは確認を挟む。
-  const confirmDiscardIfEdited = () => {
-    if (edited && message.trim() !== '') {
-      return window.confirm('編集中の内容を破棄して差し替えますか？')
+  // チップ選択時の置き換え可否。空 or 未編集（いずれかの定型文と一致）なら黙って
+  // 置き換え、ユーザーが編集した内容が入っているときだけ確認する（追記はしない）。
+  const confirmReplace = () => {
+    if (message.trim() !== '' && !isSceneText(message, friendName)) {
+      return window.confirm('入力中の文面を置き換えますか？')
     }
     return true
   }
@@ -111,22 +111,20 @@ export default function MessageSendModal({
       return
     }
     if (scene.id === selectedSceneId && variantSceneId === null) return
-    if (!confirmDiscardIfEdited()) return
+    if (!confirmReplace()) return
     setMessage(renderSceneMessage(scene.template ?? '', friendName))
     setSelectedSceneId(scene.id)
     setSelectedVariantId(null)
     setVariantSceneId(null)
-    setEdited(false)
     setError('')
     cancelConfirm()
   }
 
   const selectVariant = (scene: MessageScene, variant: SceneVariant) => {
-    if (!confirmDiscardIfEdited()) return
+    if (!confirmReplace()) return
     setMessage(renderSceneMessage(variant.template, friendName))
     setSelectedSceneId(scene.id)
     setSelectedVariantId(variant.id)
-    setEdited(false)
     setError('')
     cancelConfirm()
   }
@@ -134,12 +132,11 @@ export default function MessageSendModal({
   // 「自由に書く」: 本文を空にして自由入力にする。
   const selectFree = () => {
     if (selectedSceneId === FREE_ID) return
-    if (!confirmDiscardIfEdited()) return
+    if (!confirmReplace()) return
     setMessage('')
     setSelectedSceneId(FREE_ID)
     setSelectedVariantId(null)
     setVariantSceneId(null)
-    setEdited(false)
     setError('')
     cancelConfirm()
   }
@@ -291,7 +288,6 @@ export default function MessageSendModal({
                 value={message}
                 onChange={(e) => {
                   setMessage(e.target.value)
-                  setEdited(true)
                   cancelConfirm()
                 }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"

@@ -179,3 +179,19 @@ export function findScene(sceneId: string | undefined): MessageScene {
 export function hasVariants(scene: MessageScene): boolean {
   return Array.isArray(scene.variants) && scene.variants.length > 0
 }
+
+/**
+ * text が（name 差し込み済みの）いずれかの場面／バリアント定型文と完全一致するか。
+ * 「未編集の定型文なら黙って置き換える／編集済みなら確認する」の判定に使う。
+ */
+export function isSceneText(text: string, name: string): boolean {
+  for (const scene of MESSAGE_SCENES) {
+    if (scene.template && renderSceneMessage(scene.template, name) === text) return true
+    if (scene.variants) {
+      for (const v of scene.variants) {
+        if (renderSceneMessage(v.template, name) === text) return true
+      }
+    }
+  }
+  return false
+}
