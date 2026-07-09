@@ -454,6 +454,25 @@ CREATE TABLE incoming_webhooks (
   updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
+CREATE TABLE insurance_products (
+  id TEXT PRIMARY KEY,
+  category_name TEXT NOT NULL,
+  company_name TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  normalized_name TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+
+CREATE TABLE insurance_switch_rules (
+  id TEXT PRIMARY KEY,
+  old_product_id TEXT NOT NULL,
+  new_product_id TEXT NOT NULL,
+  memo TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+
 CREATE TABLE line_accounts (
   id                   TEXT PRIMARY KEY,
   channel_id           TEXT NOT NULL UNIQUE,
@@ -900,6 +919,15 @@ CREATE INDEX idx_friends_user_id ON friends (user_id);
 CREATE INDEX idx_health_logs_account ON account_health_logs (line_account_id);
 
 CREATE INDEX idx_idempotency_expires ON booking_idempotency_keys (expires_at);
+
+CREATE INDEX idx_insurance_products_category_company
+  ON insurance_products(category_name, company_name);
+
+CREATE INDEX idx_insurance_products_normalized_name
+  ON insurance_products(normalized_name);
+
+CREATE INDEX idx_insurance_switch_rules_old_product
+  ON insurance_switch_rules(old_product_id);
 
 CREATE INDEX idx_line_accounts_display_order
   ON line_accounts (display_order, created_at);
