@@ -53,7 +53,7 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = excluded.updated_at;
 
 INSERT INTO insurance_products (id, category_name, company_name, product_name, normalized_name, is_active, created_at, updated_at)
-VALUES ('prd_6f6919207c0a', '定期保険', 'SBI生命', 'クリック定期！Neo', 'クリック定期!neo', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+VALUES ('prd_6f6919207c0a', '定期保険', 'SBI生命', 'クリック定期！Neo', 'クリック定期neo', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 ON CONFLICT(id) DO UPDATE SET
   category_name = excluded.category_name,
   company_name = excluded.company_name,
@@ -1973,7 +1973,7 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = excluded.updated_at;
 
 INSERT INTO insurance_products (id, category_name, company_name, product_name, normalized_name, is_active, created_at, updated_at)
-VALUES ('prd_0eac994f243f', 'その他', '明治安田生命', 'かんたん保険シリーズ ライト！', 'かんたん保険シリズライト!', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+VALUES ('prd_0eac994f243f', 'その他', '明治安田生命', 'かんたん保険シリーズ ライト！', 'かんたん保険シリズライト', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 ON CONFLICT(id) DO UPDATE SET
   category_name = excluded.category_name,
   company_name = excluded.company_name,
@@ -1993,7 +1993,7 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = excluded.updated_at;
 
 INSERT INTO insurance_products (id, category_name, company_name, product_name, normalized_name, is_active, created_at, updated_at)
-VALUES ('prd_fc633d0fb277', 'その他', '明治安田生命', 'ベストスタイル Jr.', 'ベストスタイルjr.', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+VALUES ('prd_fc633d0fb277', 'その他', '明治安田生命', 'ベストスタイル Jr.', 'ベストスタイルjr', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 ON CONFLICT(id) DO UPDATE SET
   category_name = excluded.category_name,
   company_name = excluded.company_name,
@@ -2023,7 +2023,7 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = excluded.updated_at;
 
 INSERT INTO insurance_products (id, category_name, company_name, product_name, normalized_name, is_active, created_at, updated_at)
-VALUES ('prd_672a16947da4', '医療保険', '明治安田生命', 'メディカルスタイル F Jr.', 'メディカルスタイルfjr.', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+VALUES ('prd_672a16947da4', '医療保険', '明治安田生命', 'メディカルスタイル F Jr.', 'メディカルスタイルfjr', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 ON CONFLICT(id) DO UPDATE SET
   category_name = excluded.category_name,
   company_name = excluded.company_name,
