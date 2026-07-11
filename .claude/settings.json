@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(*)",
       "Read", "Edit", "Write", "Glob", "Grep",
       "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)",
       "Bash(git add *)", "Bash(git commit*)", "Bash(git push*)",
@@ -8,6 +9,17 @@
       "Bash(npx tsc*)", "Bash(npx vitest*)",
       "Bash(npx wrangler d1 execute * --remote --command SELECT*)",
       "Bash(node *)"
+    ],
+    "ask": [
+      "Bash(npx wrangler deploy*)",
+      "Bash(pnpm --filter worker run deploy*)",
+      "Bash(npx wrangler pages deploy*)",
+      "Bash(npx wrangler d1 execute*)",
+      "Bash(npx wrangler kv*)",
+      "Bash(npx wrangler@latest deploy*)",
+      "Bash(npx wrangler@latest pages deploy*)",
+      "Bash(npx wrangler@latest d1 execute*)",
+      "Bash(npx wrangler@latest kv*)"
     ],
     "deny": [
       "Bash(rm -rf *)", "Bash(sudo *)",
