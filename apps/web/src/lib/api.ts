@@ -129,15 +129,65 @@ export type FriendListParams = {
 }
 
 export type FriendWithTags = Friend & { tags: Tag[] }
+
+/** 第22弾 — friend_contracts 1行(照合済みなら insurance_products の名称付き)。 */
+export type FriendContractItem = {
+  id: string
+  productId: string | null
+  categoryName: string | null
+  companyName: string | null
+  productName: string | null
+  freeTextName: string | null
+  renewalDate: string | null
+  notifiedAt: string | null
+  sortOrder: number
+}
+
+/** PUT /api/friends/:id/contracts の1行ぶんのペイロード。 */
+export type FriendContractPayload = {
+  /** 既存行のID。渡すと created_at と(未指定時の) notifiedAt を引き継ぐ。 */
+  id?: string
+  productId?: string | null
+  freeTextName?: string | null
+  renewalDate?: string | null
+  notifiedAt?: string | null
+}
+
+/** 第21弾 — 商品マスター1件(選択UI用)。 */
+export type InsuranceProductItem = {
+  id: string
+  categoryName: string
+  companyName: string
+  productName: string
+}
+
+/** 照合済みなら「会社名 商品名」、未照合なら自由記述を表示名にする。 */
+export function contractDisplayName(c: FriendContractItem): string {
+  if (c.productName) return `${c.companyName ?? ''} ${c.productName}`.trim()
+  return c.freeTextName ?? ''
+}
+
 /** Friend list items, optionally hydrated with chat status (when ?includeChatStatus=true) */
 export type FriendListItem = FriendWithTags & Partial<{
   latestIncomingMessage: { content: string; messageType: string; createdAt: string } | null
   latestOutgoingAt: string | null
   activeScenario: { name: string; status: string } | null
   handled: boolean
+  /** 第22弾 — friend_contracts 由来。一覧APIが常に同梱する(旧 metadata.contracts の後継)。 */
+  contracts: FriendContractItem[]
 }>
 
 export const api = {
+  // 第21弾 — 保険商品マスター(契約編集UIの3段階セレクト用)。
+  insurance: {
+    categories: () => fetchApi<ApiResponse<string[]>>('/api/insurance/categories'),
+    companies: (category: string) =>
+      fetchApi<ApiResponse<string[]>>('/api/insurance/companies?' + new URLSearchParams({ category })),
+    products: (category: string, company: string) =>
+      fetchApi<ApiResponse<InsuranceProductItem[]>>(
+        '/api/insurance/products?' + new URLSearchParams({ category, company }),
+      ),
+  },
   friends: {
     list: (params?: FriendListParams) => {
       const query: Record<string, string> = {}
@@ -181,6 +231,23 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(metadata),
       }),
+    // 第22弾 — 契約は metadata.contracts ではなく friend_contracts テーブルで管理する。
+    contracts: {
+      list: (id: string) =>
+        fetchApi<ApiResponse<FriendContractItem[]>>(`/api/friends/${id}/contracts`),
+      /** 丸ごと差し替え。既存行は id を渡すと notifiedAt / created_at を引き継ぐ。 */
+      replace: (id: string, contracts: FriendContractPayload[]) =>
+        fetchApi<ApiResponse<FriendContractItem[]>>(`/api/friends/${id}/contracts`, {
+          method: 'PUT',
+          body: JSON.stringify({ contracts }),
+        }),
+      /** 更新パネルの「対応済み」トグル。 */
+      setNotified: (id: string, contractId: string, notifiedAt: string | null) =>
+        fetchApi<ApiResponse<null>>(`/api/friends/${id}/contracts/${contractId}/notified`, {
+          method: 'PATCH',
+          body: JSON.stringify({ notifiedAt }),
+        }),
+    },
   },
   tags: {
     list: () =>

@@ -2,9 +2,10 @@
 // 誕生日/更新/フォローの各パネルと、残り件数メーターが同じ定義を使うことで、
 // 「パネルから消えたのにメーターが減らない」といったズレを防ぐ。
 //
-// 対応済みの記録は friend.metadata に持つ（既存の更新API・shallow merge を利用）:
-//   - 誕生日:  metadata.birthday_notified_at = 'YYYY-MM-DD'
-//   - 更新:    contracts[i].notified_at       = 'YYYY-MM-DD'
+// 対応済みの記録:
+//   - 誕生日:  friend.metadata.birthday_notified_at = 'YYYY-MM-DD'（従来どおり）
+//   - 更新:    friend_contracts.notified_at（第22弾で専用テーブルへ移行。
+//              一覧APIが同梱する friend.contracts[i].notifiedAt を読む）
 // どちらも「対応してから SUPPRESS_DAYS 日以内はパネルに出さない」= 同サイクルを抑止。
 // 年に一度のイベント（誕生日・年次更新）なら、翌年（約365日後）は再び出る。
 
@@ -49,8 +50,9 @@ export function isBirthdaySuppressed(meta: Record<string, unknown>, today: Date)
   return suppressedByNotifiedAt(meta.birthday_notified_at, today)
 }
 
-export function isContractSuppressed(contract: Record<string, unknown>, today: Date): boolean {
-  return suppressedByNotifiedAt(contract.notified_at, today)
+/** friend_contracts.notified_at(camelCaseでAPIから来る値)による抑止判定。 */
+export function isContractSuppressed(notifiedAt: unknown, today: Date): boolean {
+  return suppressedByNotifiedAt(notifiedAt, today)
 }
 
 /** metadata.birthday("YYYY-MM-DD") から月日を取り出す。妥当でなければ null。 */
@@ -99,11 +101,9 @@ export function countTodaysWork(friends: FriendListItem[], today: Date): TodaysW
       if (d >= 0 && d <= BIRTHDAY_WINDOW_DAYS) birthday++
     }
 
-    const contracts = Array.isArray(meta.contracts) ? meta.contracts : []
-    for (const c of contracts) {
-      const obj = (c ?? {}) as Record<string, unknown>
-      const du = daysUntilYmd(toYmd(obj.renewal_date), today)
-      if (du !== null && du >= 0 && du <= RENEWAL_WINDOW_DAYS && !isContractSuppressed(obj, today)) renewal++
+    for (const c of f.contracts ?? []) {
+      const du = daysUntilYmd(toYmd(c.renewalDate), today)
+      if (du !== null && du >= 0 && du <= RENEWAL_WINDOW_DAYS && !isContractSuppressed(c.notifiedAt, today)) renewal++
     }
 
     for (const fu of parseFollowups(meta)) {

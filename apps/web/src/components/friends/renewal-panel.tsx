@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, contractDisplayName } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import { todayYmd } from './customer-notes'
@@ -27,8 +27,8 @@ interface UpcomingRenewal {
   friendId: string
   name: string
   contractName: string
-  /** その友だちの contracts 配列内でのインデックス（対応済み記録用） */
-  contractIndex: number
+  /** friend_contracts.id（対応済み記録は PATCH /contracts/:id/notified で行う） */
+  contractId: string
   /** 表示用 YYYY/MM/DD */
   dateLabel: string
   /** 今日から更新日までの日数（0=今日） */
@@ -55,8 +55,8 @@ function relativeLabel(days: number): string {
 
 export default function RenewalPanel({ friends, loading, error, onToast, onChanged }: Props) {
   const router = useRouter()
-  const [sendTarget, setSendTarget] = useState<{ id: string; name: string; contractIndex: number } | null>(null)
-  // 「対応済み」にした契約をその場で消すための楽観的セット（key = friendId:contractIndex）。
+  const [sendTarget, setSendTarget] = useState<{ id: string; name: string; contractId: string } | null>(null)
+  // 「対応済み」にした契約をその場で消すための楽観的セット（key = friendId:contractId）。
   const [handled, setHandled] = useState<Set<string>>(new Set())
   const [showAll, setShowAll] = useState(false)
   const narrow = useIsNarrow()
@@ -65,25 +65,23 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
     const today = new Date()
     const list: UpcomingRenewal[] = []
     for (const f of friends) {
-      const meta = (f.metadata ?? {}) as Record<string, unknown>
-      const contracts = Array.isArray(meta.contracts) ? meta.contracts : []
-      contracts.forEach((c, contractIndex) => {
-        const obj = (c ?? {}) as Record<string, unknown>
-        const parsed = daysUntilDate(obj.renewal_date, today)
-        if (!parsed) return
-        if (isContractSuppressed(obj, today)) return // この更新は対応済み → 出さない
-        if (handled.has(`${f.id}:${contractIndex}`)) return
+      // 第22弾 — friend_contracts 由来（一覧APIが同梱）。metadata.contracts はもう読まない。
+      for (const c of f.contracts ?? []) {
+        const parsed = daysUntilDate(c.renewalDate, today)
+        if (!parsed) continue
+        if (isContractSuppressed(c.notifiedAt, today)) continue // この更新は対応済み → 出さない
+        if (handled.has(`${f.id}:${c.id}`)) continue
         if (parsed.days >= 0 && parsed.days <= WINDOW_DAYS) {
           list.push({
             friendId: f.id,
             name: f.displayName,
-            contractName: typeof obj.name === 'string' && obj.name ? obj.name : '契約',
-            contractIndex,
+            contractName: contractDisplayName(c) || '契約',
+            contractId: c.id,
             dateLabel: parsed.label,
             daysUntil: parsed.days,
           })
         }
-      })
+      }
     }
     return list.sort((a, b) => a.daysUntil - b.daysUntil)
   }, [friends, handled])
@@ -92,19 +90,12 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
   const visible = narrow && !showAll ? upcoming.slice(0, MOBILE_LIMIT) : upcoming
   const hiddenCount = upcoming.length - visible.length
 
-  /** 該当契約を対応済みにする（contracts[i].notified_at=today）。楽観的に消す。 */
-  const markDone = async (item: { friendId: string; contractIndex: number; name: string }) => {
-    const key = `${item.friendId}:${item.contractIndex}`
+  /** 該当契約を対応済みにする（friend_contracts.notified_at=today）。楽観的に消す。 */
+  const markDone = async (item: { friendId: string; contractId: string; name: string }) => {
+    const key = `${item.friendId}:${item.contractId}`
     setHandled((prev) => new Set(prev).add(key))
-    const friend = friends.find((f) => f.id === item.friendId)
-    const meta = (friend?.metadata ?? {}) as Record<string, unknown>
-    const contracts = Array.isArray(meta.contracts) ? meta.contracts : []
-    // 対象契約に notified_at を付与（他の契約・キーはそのまま保持）。
-    const next = contracts.map((c, i) =>
-      i === item.contractIndex ? { ...(c as Record<string, unknown>), notified_at: todayYmd() } : c,
-    )
     try {
-      const res = await api.friends.updateMetadata(item.friendId, { contracts: next })
+      const res = await api.friends.contracts.setNotified(item.friendId, item.contractId, todayYmd())
       if (res.success) {
         onChanged?.()
       } else {
@@ -146,7 +137,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {visible.map((r) => (
               <div
-                key={`${r.friendId}-${r.contractIndex}`}
+                key={`${r.friendId}-${r.contractId}`}
                 className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-brand/5 to-white"
               >
                 <div className="min-w-0">
@@ -173,7 +164,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
                 <div className="mt-auto flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setSendTarget({ id: r.friendId, name: r.name, contractIndex: r.contractIndex })}
+                    onClick={() => setSendTarget({ id: r.friendId, name: r.name, contractId: r.contractId })}
                     className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
                     style={{ backgroundColor: '#14283F' }}
                   >
@@ -181,7 +172,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
                   </button>
                   <button
                     type="button"
-                    onClick={() => markDone({ friendId: r.friendId, contractIndex: r.contractIndex, name: r.name })}
+                    onClick={() => markDone({ friendId: r.friendId, contractId: r.contractId, name: r.name })}
                     aria-label="対応済みにする"
                     className="shrink-0 min-h-[44px] px-3 rounded-lg text-sm font-medium text-brand border border-gray-300 hover:bg-gray-50 transition-colors"
                   >
@@ -214,7 +205,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
             // 送れたら自動で対応済みにする。
             const t = sendTarget
             setSendTarget(null)
-            void markDone({ friendId: t.id, contractIndex: t.contractIndex, name: t.name })
+            void markDone({ friendId: t.id, contractId: t.contractId, name: t.name })
           }}
         />
       )}

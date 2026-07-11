@@ -8,8 +8,10 @@ import {
   getFriendTags,
   getScenarios,
   enrollFriendInScenario,
+  getContractsByFriendIds,
   jstNow,
 } from '@line-crm/db';
+import { serializeContract } from './friend-contracts.js';
 import type { Friend as DbFriend, Tag as DbTag } from '@line-crm/db';
 import { fireEvent } from '../services/event-bus.js';
 import { buildMessage } from '../services/step-delivery.js';
@@ -244,6 +246,21 @@ friends.get('/api/friends', async (c) => {
           }),
         )
       : items.map((friend) => ({ ...serializeFriendListRow(friend, includeChatStatus), tags: [] }));
+
+    // 第22弾 — 契約(friend_contracts)を一括同梱。ダッシュボードの更新パネルや
+    // 一覧の契約表示は metadata.contracts ではなくこの配列を読む。
+    // IN 一括の1クエリなので limit=50 でも追加コストは小さい。
+    const contractRows = await getContractsByFriendIds(db, items.map((f) => f.id));
+    const contractsByFriend = new Map<string, ReturnType<typeof serializeContract>[]>();
+    for (const row of contractRows) {
+      const list = contractsByFriend.get(row.friend_id) ?? [];
+      list.push(serializeContract(row));
+      contractsByFriend.set(row.friend_id, list);
+    }
+    itemsWithTags = itemsWithTags.map((f) => ({
+      ...f,
+      contracts: contractsByFriend.get(f.id) ?? [],
+    }));
 
     // Optional: hydrate chat status (latest in/out message, active scenario,
     // derived "handled" flag). Three batched queries instead of N×3 to keep

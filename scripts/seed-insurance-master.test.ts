@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizeForMatch } from '../packages/shared/src/insurance';
+import { matchProducts, normalizeForMatch } from '../packages/shared/src/insurance';
 
 /**
  * 第21弾: seeds/insurance-master.sql の normalized_name が
@@ -61,6 +61,27 @@ describe('seeds/insurance-master.sql', () => {
         expected: normalizeForMatch(row.productName),
       }));
     expect(mismatches).toEqual([]);
+  });
+});
+
+describe('matchProducts', () => {
+  const products = parseSeedRows(readFileSync(SEED_PATH, 'utf8')).map((row) => ({
+    id: row.id,
+    product_name: row.productName,
+    normalized_name: row.normalizedName,
+  }));
+
+  it('「ソニー」(会社名のみの記述)は exact/normalized 一致せず未照合になる', () => {
+    // 第22弾のデータ移行は exact/normalized のみ product_id を確定する。
+    // 会社名レベルの自由記述は未照合(product_id NULL)のまま残るのが正。
+    const candidates = matchProducts('ソニー', products);
+    expect(candidates.filter((m) => m.matchType === 'exact' || m.matchType === 'normalized')).toEqual([]);
+  });
+
+  it('記号ゆれは normalized 一致で確定できる(移行の確定側の代表例)', () => {
+    const candidates = matchProducts('クリック定期Neo', products);
+    expect(candidates[0]?.matchType).toBe('normalized');
+    expect(candidates[0]?.product.product_name).toBe('クリック定期！Neo');
   });
 });
 

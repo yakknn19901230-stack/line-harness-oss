@@ -373,6 +373,18 @@ CREATE TABLE forms (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 , on_submit_message_type TEXT CHECK (on_submit_message_type IN ('text', 'flex')) DEFAULT NULL, on_submit_message_content TEXT DEFAULT NULL, on_submit_webhook_url TEXT, on_submit_webhook_headers TEXT, on_submit_webhook_fail_message TEXT, og_title TEXT, og_description TEXT, og_image_url TEXT);
 
+CREATE TABLE friend_contracts (
+  id TEXT PRIMARY KEY,
+  friend_id TEXT NOT NULL,
+  product_id TEXT,              -- insurance_products.id。未照合は NULL
+  free_text_name TEXT,          -- 自由記述(未照合時の表示名。照合済みでも元表記保持に使ってよい)
+  renewal_date TEXT,            -- YYYY-MM-DD。未設定は NULL
+  notified_at TEXT,             -- 更新パネル「対応済み」記録(YYYY-MM-DD)
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now','+9 hours')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now','+9 hours'))
+);
+
 CREATE TABLE friend_reminder_deliveries (
   id                TEXT PRIMARY KEY,
   friend_reminder_id TEXT NOT NULL REFERENCES friend_reminders (id) ON DELETE CASCADE,
@@ -891,6 +903,15 @@ CREATE INDEX idx_form_opens_form ON form_opens (form_id, opened_at);
 CREATE INDEX idx_form_submissions_form ON form_submissions (form_id);
 
 CREATE INDEX idx_form_submissions_friend ON form_submissions (friend_id);
+
+CREATE INDEX idx_friend_contracts_friend_id
+  ON friend_contracts(friend_id);
+
+CREATE INDEX idx_friend_contracts_product_id
+  ON friend_contracts(product_id);
+
+CREATE INDEX idx_friend_contracts_renewal_date
+  ON friend_contracts(renewal_date);
 
 CREATE INDEX idx_friend_reminders_friend ON friend_reminders (friend_id);
 

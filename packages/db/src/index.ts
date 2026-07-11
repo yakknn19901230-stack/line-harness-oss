@@ -29,6 +29,7 @@ export * from './traffic-pools';
 export * from './message-templates';
 export * from './rich-menus';
 export * from './insurance';
+export * from './friend-contracts';
 
 /**
  * Thin wrapper around D1Database.

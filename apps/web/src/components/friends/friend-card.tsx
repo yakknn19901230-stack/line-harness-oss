@@ -28,7 +28,7 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
   const incoming = friend.latestIncomingMessage
   const meta = (friend.metadata ?? {}) as Record<string, unknown>
   const birthday = metaDate(meta.birthday)
-  const contracts = getContracts(meta)
+  const contracts = getContracts(friend)
   const notePreview = latestNotePreview(meta)
 
   return (

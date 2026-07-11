@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import type { FriendContractItem, InsuranceProductItem } from '@/lib/api'
 import DateInput, { storedToDisplay, displayToStored } from './date-input'
 import {
   parseNotes,
@@ -23,12 +24,52 @@ interface Props {
   onSaveError?: (message: string) => void
 }
 
-/** 契約1件の編集状態。契約名は自由入力、更新日は YYYY-MM-DD（未入力なら空）。 */
+/**
+ * 契約1件の編集状態（第22弾から friend_contracts テーブル由来）。
+ * 商品は「種類→会社→商品」の3段階セレクトで商品マスターと照合するのが基本で、
+ * マスターにない商品は freeMode（自由記述）で登録する。更新日は表示用 YYYY/MM/DD。
+ */
 interface ContractRow {
-  name: string
+  /** React用のローカルキー */
+  key: string
+  /** 既存行の friend_contracts.id（新規行は undefined）。保存時に渡すと notified_at を引き継ぐ */
+  id?: string
+  productId: string | null
+  categoryName: string | null
+  companyName: string | null
+  productName: string | null
+  /** 自由記述（未照合時の表示名。照合済みでも元表記として保持） */
+  freeTextName: string
   renewal_date: string
-  /** 更新パネルの「対応済み」記録（YYYY-MM-DD）。UI では触らず素通しで保持する。 */
-  notifiedAt?: string
+  /** 更新パネルの「対応済み」記録。UI では触らず素通しで保持する。 */
+  notifiedAt?: string | null
+  /** 3段階セレクトを開いているか（未照合の既存行と新規行は初期 true） */
+  picking: boolean
+  /** 「マスターにない商品」トグル（自由記述モード） */
+  freeMode: boolean
+  selCategory: string
+  selCompany: string
+}
+
+let contractKeySeq = 0
+const nextContractKey = () => `c${++contractKeySeq}`
+
+function fromApiContract(c: FriendContractItem): ContractRow {
+  return {
+    key: nextContractKey(),
+    id: c.id,
+    productId: c.productId,
+    categoryName: c.categoryName,
+    companyName: c.companyName,
+    productName: c.productName,
+    freeTextName: c.freeTextName ?? '',
+    renewal_date: storedToDisplay(toDateInputValue(c.renewalDate)),
+    notifiedAt: c.notifiedAt,
+    picking: c.productId === null,
+    freeMode: false,
+    selCategory: '',
+    selCompany: '',
+  }
 }
 
 /** metadata の値を <input type="date"> 用の YYYY-MM-DD に整える。
@@ -44,28 +85,8 @@ function asString(raw: unknown): string {
   return typeof raw === 'string' ? raw : ''
 }
 
-/** metadata から契約リストを組み立てる（renewal_date は表示用 YYYY/MM/DD にして返す）。
- *  - contracts 配列があればそれを使う。
- *  - 無くて旧 renewal_date（単一キー）があれば、契約1行目（名前空）として移行表示する。 */
-function loadContracts(meta: Record<string, unknown>): ContractRow[] {
-  const raw = meta.contracts
-  if (Array.isArray(raw)) {
-    return raw
-      .map((c) => {
-        const obj = (c ?? {}) as Record<string, unknown>
-        return {
-          name: asString(obj.name),
-          renewal_date: storedToDisplay(toDateInputValue(obj.renewal_date)),
-          notifiedAt: asString(obj.notified_at) || undefined,
-        }
-      })
-      // 完全に空の行は読み込み時に落とす
-      .filter((c) => c.name.trim() !== '' || c.renewal_date !== '')
-  }
-  const legacy = toDateInputValue(meta.renewal_date)
-  if (legacy) return [{ name: '', renewal_date: storedToDisplay(legacy) }]
-  return []
-}
+// 契約は第22弾から friend_contracts テーブル(GET /api/friends/:id/contracts)で読む。
+// 旧 metadata.contracts はもう読まない(データは化石として残置)。
 
 /**
  * 顧客情報（基本情報・契約・連絡先）を編集して friends.metadata に保存するモーダル。
@@ -103,19 +124,18 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
     }
   }, [])
 
-  // 開いた時点の最新 metadata を取得して初期表示に反映する。
+  // 開いた時点の最新 metadata と契約(friend_contracts)を取得して初期表示に反映する。
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError('')
-    api.friends
-      .get(friendId)
-      .then((res) => {
+    Promise.all([api.friends.get(friendId), api.friends.contracts.list(friendId)])
+      .then(([res, contractsRes]) => {
         if (cancelled) return
-        if (res.success && res.data) {
+        if (res.success && res.data && contractsRes.success) {
           const meta = (res.data.metadata ?? {}) as Record<string, unknown>
           setBirthday(storedToDisplay(toDateInputValue(meta.birthday)))
-          setContracts(loadContracts(meta))
+          setContracts((contractsRes.data ?? []).map(fromApiContract))
           setPhone(asString(meta.phone))
           setEmail(asString(meta.email))
           setNotes(parseNotes(meta))
@@ -136,10 +156,95 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
     }
   }, [friendId])
 
-  const addContract = () => setContracts((cs) => [...cs, { name: '', renewal_date: '' }])
-  const removeContract = (idx: number) => setContracts((cs) => cs.filter((_, i) => i !== idx))
-  const updateContract = (idx: number, patch: Partial<ContractRow>) =>
-    setContracts((cs) => cs.map((c, i) => (i === idx ? { ...c, ...patch } : c)))
+  // ── 商品マスター(3段階セレクトの選択肢)。null=読み込み中、[]=該当なし ──
+  const [categories, setCategories] = useState<string[] | null>(null)
+  const [companiesByCat, setCompaniesByCat] = useState<Record<string, string[] | null>>({})
+  const [productsByKey, setProductsByKey] = useState<Record<string, InsuranceProductItem[] | null>>({})
+  const productKey = (category: string, company: string) => category + '|' + company
+
+  useEffect(() => {
+    let cancelled = false
+    api.insurance
+      .categories()
+      .then((res) => {
+        if (!cancelled) setCategories(res.success ? (res.data ?? []) : [])
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const loadCompanies = (category: string) => {
+    if (category === '' || companiesByCat[category] !== undefined) return
+    setCompaniesByCat((m) => ({ ...m, [category]: null }))
+    api.insurance
+      .companies(category)
+      .then((res) => setCompaniesByCat((m) => ({ ...m, [category]: res.success ? (res.data ?? []) : [] })))
+      .catch(() => setCompaniesByCat((m) => ({ ...m, [category]: [] })))
+  }
+
+  const loadProducts = (category: string, company: string) => {
+    const k = productKey(category, company)
+    if (category === '' || company === '' || productsByKey[k] !== undefined) return
+    setProductsByKey((m) => ({ ...m, [k]: null }))
+    api.insurance
+      .products(category, company)
+      .then((res) => setProductsByKey((m) => ({ ...m, [k]: res.success ? (res.data ?? []) : [] })))
+      .catch(() => setProductsByKey((m) => ({ ...m, [k]: [] })))
+  }
+
+  const addContract = () =>
+    setContracts((cs) => [
+      ...cs,
+      {
+        key: nextContractKey(),
+        productId: null,
+        categoryName: null,
+        companyName: null,
+        productName: null,
+        freeTextName: '',
+        renewal_date: '',
+        picking: true,
+        freeMode: false,
+        selCategory: '',
+        selCompany: '',
+      },
+    ])
+  const removeContract = (key: string) => setContracts((cs) => cs.filter((c) => c.key !== key))
+  const updateContract = (key: string, patch: Partial<ContractRow>) =>
+    setContracts((cs) => cs.map((c) => (c.key === key ? { ...c, ...patch } : c)))
+
+  /** 照合済み行の「変更」— セレクトを現在の種類・会社を初期値にして開く。 */
+  const startPicking = (c: ContractRow) => {
+    updateContract(c.key, {
+      picking: true,
+      freeMode: false,
+      selCategory: c.categoryName ?? '',
+      selCompany: c.companyName ?? '',
+    })
+    if (c.categoryName) {
+      loadCompanies(c.categoryName)
+      if (c.companyName) loadProducts(c.categoryName, c.companyName)
+    }
+  }
+
+  /** 3段目(商品)を選んだら照合を確定してコンパクト表示へ戻す。 */
+  const pickProduct = (key: string, category: string, company: string, productId: string) => {
+    const options = productsByKey[productKey(category, company)]
+    const product = (options ?? []).find((p) => p.id === productId)
+    if (!product) return
+    updateContract(key, {
+      productId: product.id,
+      categoryName: product.categoryName,
+      companyName: product.companyName,
+      productName: product.productName,
+      picking: false,
+      freeMode: false,
+    })
+  }
 
   // 面談メモを追記（日付つきで先頭＝新しい順に積む）。保存は「保存する」で確定。
   const addNote = () => {
@@ -216,25 +321,25 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
       setError('誕生日は YYYY/MM/DD の形式で正しく入力してください（例: 1985/07/02）')
       return
     }
-    const contractResults = contracts.map((c) => ({ name: c.name.trim(), date: displayToStored(c.renewal_date) }))
+    const contractResults = contracts.map((c) => ({ row: c, date: displayToStored(c.renewal_date) }))
     const badIdx = contractResults.findIndex((cr) => !cr.date.ok)
     if (badIdx >= 0) {
       setError(`契約 ${badIdx + 1} 件目の更新日を YYYY/MM/DD の形式で正しく入力してください（例: 2026/09/01）`)
       return
     }
 
-    // 契約: 完全に空の行は落として配列化。更新日は YYYY-MM-DD で保存。
-    // notified_at（更新パネルの対応済み記録）は UI で触らず、あれば素通しで保持する。
+    // 契約は friend_contracts へ「丸ごと差し替え」保存(PUT /api/friends/:id/contracts)。
+    // - 自由記述モード(freeMode)の行は productId を付けない
+    // - productId と自由記述が両方空の行は落とす(サーバ側でも同じルールで弾く)
+    // - notifiedAt は送らない: 既存行の id を渡せばサーバが素通しで引き継ぐ
     const contractsPayload = contractResults
-      .map((cr, i) => {
-        const notifiedAt = contracts[i]?.notifiedAt
-        return {
-          name: cr.name,
-          renewal_date: cr.date.value,
-          ...(notifiedAt ? { notified_at: notifiedAt } : {}),
-        }
-      })
-      .filter((c) => c.name !== '' || c.renewal_date !== '')
+      .map((cr) => ({
+        ...(cr.row.id ? { id: cr.row.id } : {}),
+        productId: cr.row.freeMode ? null : cr.row.productId,
+        freeTextName: cr.row.freeTextName.trim() || null,
+        renewalDate: cr.date.value || null,
+      }))
+      .filter((c) => c.productId !== null || c.freeTextName !== null)
 
     const emailVal = email.trim()
     const phoneVal = phone.trim()
@@ -248,10 +353,11 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
       followupsPayload = [...followups, { date: pendingFu.value, note: fuNote.trim(), done: false }]
     }
 
+    // metadata には契約を含めない(第22弾で friend_contracts へ移行。書き込みは全廃)。
+    // 旧 renewal_date(単一キー)の掃除ロジックだけ残す。
     const payload = {
       birthday: bd.value || null,
-      contracts: contractsPayload,
-      renewal_date: null, // 旧 renewal_date（単一キー）は contracts へ移行済みなので削除
+      renewal_date: null,
       phone: phoneVal || null,
       email: emailVal || null,
       notes: notesPayload,
@@ -264,8 +370,10 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
     onClose()
     void (async () => {
       try {
+        // 契約(friend_contracts) → metadata の順で保存。どちらか失敗ならトースト。
+        const contractsRes = await api.friends.contracts.replace(friendId, contractsPayload)
         const res = await api.friends.updateMetadata(friendId, payload)
-        if (!res.success) {
+        if (!contractsRes.success || !res.success) {
           onSaveError?.('保存に失敗しました。もう一度お試しください。')
           return
         }
@@ -325,41 +433,155 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
               <section className="space-y-2">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">契約</h3>
                 <p className="text-[11px] text-gray-400">
-                  何の保険か（自由に記入）と、更新日を登録できます。複数登録OK・空でも保存できます。
+                  種類→会社→商品の順に選ぶと商品マスターと紐づきます。マスターにない商品は自由記述でも登録できます。複数登録OK・空でも保存できます。
                 </p>
 
                 {contracts.length === 0 ? (
                   <p className="text-xs text-gray-400 py-1">まだ契約は登録されていません。</p>
                 ) : (
-                  <div className="space-y-3 sm:space-y-2">
-                    {contracts.map((c, idx) => (
-                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 sm:pb-0 border-b sm:border-b-0 border-gray-100 last:border-b-0 last:pb-0">
-                        <input
-                          type="text"
-                          value={c.name}
-                          onChange={(e) => updateContract(idx, { name: e.target.value })}
-                          placeholder="例: ソニー生命の医療 / 自動車"
-                          className="w-full sm:flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
-                        />
-                        <div className="flex items-center gap-2">
-                          <DateInput
-                            value={c.renewal_date}
-                            onChange={(v) => updateContract(idx, { renewal_date: v })}
-                            ariaLabel="更新日"
-                            invalid={attempted && c.renewal_date.trim() !== '' && !displayToStored(c.renewal_date).ok}
-                            className="flex-1 sm:flex-none sm:w-[9.5rem]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeContract(idx)}
-                            aria-label="この契約を削除"
-                            className="shrink-0 w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            ✕
-                          </button>
+                  <div className="space-y-3">
+                    {contracts.map((c) => {
+                      const companyOptions = c.selCategory ? companiesByCat[c.selCategory] : undefined
+                      const productOptions =
+                        c.selCategory && c.selCompany ? productsByKey[productKey(c.selCategory, c.selCompany)] : undefined
+                      return (
+                        <div key={c.key} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                          {c.productId && !c.picking ? (
+                            /* A) 照合済み: コンパクト表示 + 変更ボタン */
+                            <div className="flex items-center gap-2">
+                              <p className="flex-1 min-w-0 text-sm font-medium text-gray-900 truncate">
+                                {`${c.companyName ?? ''} ${c.productName ?? ''}`.trim()}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => startPicking(c)}
+                                className="shrink-0 min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg text-xs font-medium text-brand border border-gray-300 hover:bg-gray-50 transition-colors"
+                              >
+                                変更
+                              </button>
+                            </div>
+                          ) : (
+                            /* B) 未照合/新規: 3段階セレクト or 自由記述 */
+                            <div className="space-y-2">
+                              {c.id && !c.productId && c.freeTextName !== '' && (
+                                <p className="text-xs text-gray-600">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-100 text-amber-800 mr-1.5">
+                                    未照合
+                                  </span>
+                                  現在の表記: {c.freeTextName}
+                                </p>
+                              )}
+                              {c.freeMode ? (
+                                <input
+                                  type="text"
+                                  value={c.freeTextName}
+                                  onChange={(e) => updateContract(c.key, { freeTextName: e.target.value })}
+                                  placeholder="例: ○○生命の医療保険 / 自動車"
+                                  className="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-base min-h-[44px] focus:outline-none focus:ring-2 focus:ring-green-500"
+                                />
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  <select
+                                    value={c.selCategory}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      updateContract(c.key, { selCategory: v, selCompany: '' })
+                                      loadCompanies(v)
+                                    }}
+                                    aria-label="保険の種類"
+                                    className="w-full min-h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-base bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  >
+                                    <option value="">
+                                      {categories === null
+                                        ? '種類を読み込み中…'
+                                        : categories.length === 0
+                                          ? '種類の登録がありません'
+                                          : '種類を選択'}
+                                    </option>
+                                    {(categories ?? []).map((cat) => (
+                                      <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value={c.selCompany}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      updateContract(c.key, { selCompany: v })
+                                      loadProducts(c.selCategory, v)
+                                    }}
+                                    disabled={c.selCategory === ''}
+                                    aria-label="保険会社"
+                                    className="w-full min-h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-base bg-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
+                                  >
+                                    <option value="">
+                                      {c.selCategory === ''
+                                        ? '先に種類を選択'
+                                        : companyOptions === null || companyOptions === undefined
+                                          ? '会社を読み込み中…'
+                                          : companyOptions.length === 0
+                                            ? '該当する会社がありません'
+                                            : '会社を選択'}
+                                    </option>
+                                    {(companyOptions ?? []).map((company) => (
+                                      <option key={company} value={company}>{company}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    value=""
+                                    onChange={(e) => {
+                                      if (e.target.value) pickProduct(c.key, c.selCategory, c.selCompany, e.target.value)
+                                    }}
+                                    disabled={c.selCompany === ''}
+                                    aria-label="商品"
+                                    className="w-full min-h-[44px] border border-gray-300 rounded-lg px-3 py-2 text-base bg-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
+                                  >
+                                    <option value="">
+                                      {c.selCompany === ''
+                                        ? '先に会社を選択'
+                                        : productOptions === null || productOptions === undefined
+                                          ? '商品を読み込み中…'
+                                          : productOptions.length === 0
+                                            ? '該当する商品がありません'
+                                            : '商品を選択'}
+                                    </option>
+                                    {(productOptions ?? []).map((p) => (
+                                      <option key={p.id} value={p.id}>{p.productName}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                              <label className="flex items-center gap-2 text-xs text-gray-600 min-h-[44px] sm:min-h-0 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={c.freeMode}
+                                  onChange={(e) => updateContract(c.key, { freeMode: e.target.checked })}
+                                  className="w-5 h-5 sm:w-4 sm:h-4 accent-brand"
+                                />
+                                マスターにない商品（自由記述で登録）
+                              </label>
+                            </div>
+                          )}
+                          {/* 更新日 + 削除（現状維持） */}
+                          <div className="flex items-center gap-2">
+                            <DateInput
+                              value={c.renewal_date}
+                              onChange={(v) => updateContract(c.key, { renewal_date: v })}
+                              ariaLabel="更新日"
+                              invalid={attempted && c.renewal_date.trim() !== '' && !displayToStored(c.renewal_date).ok}
+                              className="flex-1 sm:flex-none sm:w-[9.5rem]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeContract(c.key)}
+                              aria-label="この契約を削除"
+                              className="shrink-0 w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
 

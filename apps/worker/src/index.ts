@@ -75,6 +75,8 @@ import { profileRefresh } from './routes/profile-refresh.js';
 import { richMenuGroups } from './routes/rich-menu-groups.js';
 // 第21弾: 保険商品マスター
 import { insurance } from './routes/insurance.js';
+// 第22弾: 契約リストの正規化
+import { friendContracts } from './routes/friend-contracts.js';
 import adminVersion from './routes/admin-version.js';
 import adminUpdate from './routes/admin-update.js';
 
@@ -191,6 +193,8 @@ app.route('/', richMenuGroups);
 
 // 第21弾 — 保険商品マスター参照API (/api/insurance/*)
 app.route('/', insurance);
+// 第22弾 — 契約リスト正規化API (/api/friends/:id/contracts)
+app.route('/', friendContracts);
 
 // Phase 5 (upgrade flow) — public build metadata endpoint. Mounted under
 // /admin/ but intentionally unauthenticated: the dashboard fetches /admin/version

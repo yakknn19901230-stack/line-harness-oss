@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import type { FriendListItem } from '@/lib/api'
+import { contractDisplayName } from '@/lib/api'
 import TagBadge from './tag-badge'
 import { latestNotePreview } from './customer-notes'
 
@@ -39,7 +40,7 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
   // metadata が含まれない場合もあるので存在チェックしてから表示する。
   const meta = (friend.metadata ?? {}) as Record<string, unknown>
   const birthday = metaDate(meta.birthday)
-  const contracts = getContracts(meta)
+  const contracts = getContracts(friend)
   const notePreview = latestNotePreview(meta)
 
   return (
@@ -253,18 +254,12 @@ export function metaDate(raw: unknown): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
 }
 
-// 一覧行に出す契約リスト。contracts 配列を優先し、無ければ旧 renewal_date 単一キーを
-// 1件として拾う（後方互換）。空エントリは除外。
-export function getContracts(meta: Record<string, unknown>): { name: string; date: string }[] {
-  const raw = meta.contracts
-  if (Array.isArray(raw)) {
-    return raw
-      .map((c) => {
-        const obj = (c ?? {}) as Record<string, unknown>
-        return { name: typeof obj.name === 'string' ? obj.name : '', date: metaDate(obj.renewal_date) }
-      })
-      .filter((c) => c.name !== '' || c.date !== '')
-  }
-  const legacy = metaDate(meta.renewal_date)
-  return legacy ? [{ name: '', date: legacy }] : []
+// 一覧行に出す契約リスト。第22弾から friend_contracts テーブル由来
+// (friends 一覧APIが同梱する friend.contracts)を読む。照合済みは
+// 「会社名 商品名」、未照合は自由記述を表示名にする。空エントリは除外。
+// 旧 metadata.contracts はもう読まない(データは化石として残置)。
+export function getContracts(friend: FriendListItem): { name: string; date: string }[] {
+  return (friend.contracts ?? [])
+    .map((c) => ({ name: contractDisplayName(c), date: metaDate(c.renewalDate) }))
+    .filter((c) => c.name !== '' || c.date !== '')
 }
