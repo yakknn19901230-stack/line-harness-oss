@@ -13,7 +13,10 @@
       "Bash(rm -rf *)", "Bash(sudo *)",
       "Read(.env*)", "Read(**/.dev.vars)",
       "Bash(npx wrangler secret *)",
-      "Bash(git push --force*)"
+      "Bash(npx wrangler@latest secret *)",
+      "Bash(wrangler secret *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)"
     ]
   }
 }
