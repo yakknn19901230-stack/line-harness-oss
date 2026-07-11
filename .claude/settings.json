@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Edit", "Write", "Glob", "Grep",
+      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)",
+      "Bash(git add *)", "Bash(git commit*)", "Bash(git push*)",
+      "Bash(pnpm *)", "Bash(npm run *)", "Bash(npx tsx *)",
+      "Bash(npx tsc*)", "Bash(npx vitest*)",
+      "Bash(npx wrangler d1 execute * --remote --command SELECT*)",
+      "Bash(node *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)", "Bash(sudo *)",
+      "Read(.env*)", "Read(**/.dev.vars)",
+      "Bash(npx wrangler secret *)",
+      "Bash(git push --force*)"
+    ]
+  }
+}
