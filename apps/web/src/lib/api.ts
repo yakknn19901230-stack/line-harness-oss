@@ -194,6 +194,9 @@ export type SwitchRuleItem = {
   oldProductId: string
   newProductId: string
   memo: string | null
+  /** 第26弾 二層方式: 'master'=共通(削除不可・無効化のみ) / 'custom'=自分ルール */
+  source: 'master' | 'custom' | string
+  isActive: boolean
   oldCategoryName: string | null
   oldCompanyName: string | null
   oldProductName: string | null
@@ -228,8 +231,31 @@ export const api = {
       fetchApi<ApiResponse<InsuranceProductItem[]>>(
         '/api/insurance/products?' + new URLSearchParams({ category, company }),
       ),
-    /** 第23弾 — 乗り換えルール一覧(乗り換え提案パネル用)。 */
+    /** 第23弾 — 乗り換えルール一覧(乗り換え提案パネル用。有効なルールのみ)。 */
     switchRules: () => fetchApi<ApiResponse<SwitchRuleItem[]>>('/api/insurance/switch-rules'),
+    /** 第26弾 — 設定画面用の全ルール一覧(無効化済み含む)。 */
+    switchRulesAll: () => fetchApi<ApiResponse<SwitchRuleItem[]>>('/api/insurance/switch-rules?all=1'),
+    /** 第26弾 — 自分ルール(custom)の作成。 */
+    createSwitchRule: (data: { oldProductId: string; newProductId: string; memo?: string | null }) =>
+      fetchApi<ApiResponse<SwitchRuleItem>>('/api/insurance/switch-rules', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    /** 第26弾 — 自分ルール(custom)の編集。共通ルールは403。 */
+    updateSwitchRule: (id: string, data: { oldProductId: string; newProductId: string; memo?: string | null }) =>
+      fetchApi<ApiResponse<SwitchRuleItem>>(`/api/insurance/switch-rules/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    /** 第26弾 — 有効/無効の切り替え(共通/自分とも可)。 */
+    setSwitchRuleActive: (id: string, isActive: boolean) =>
+      fetchApi<ApiResponse<null>>(`/api/insurance/switch-rules/${id}/active`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive }),
+      }),
+    /** 第26弾 — 自分ルール(custom)の削除。共通ルールは403(無効化を使う)。 */
+    deleteSwitchRule: (id: string) =>
+      fetchApi<ApiResponse<null>>(`/api/insurance/switch-rules/${id}`, { method: 'DELETE' }),
   },
   friends: {
     list: (params?: FriendListParams) => {

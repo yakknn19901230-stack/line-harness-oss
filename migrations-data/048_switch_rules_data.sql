@@ -2,12 +2,16 @@
 -- 入力: hozenkun-assistant/master/switch-rules.json (単一の真実)
 -- 件数: 1 ルール
 -- 冪等: 何度流しても同じ結果になる(upsert + マスター外の削除)。
+-- 二層方式(第26弾): 対象は source='master' の行のみ。管理画面で作ったcustom行には触れず、
+-- is_active も上書きしない(ユーザーの無効化はseed再投入後も維持される)。
 -- ソニー生命 バリアブルライフ 変額保険（終身型/無配当）(変額保険) → マニュライフ生命 こだわり変額保険v2(変額保険)
-INSERT INTO insurance_switch_rules (id, old_product_id, new_product_id, memo, created_at)
-VALUES ('swr_e70dbe8a80fb', 'prd_3255af2f7a36', 'prd_2ae2899e09d7', '【テスト用ルール】運用コスト・特別勘定の選択肢を比較し、こだわり変額保険v2への切り替え余地を確認', strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+INSERT INTO insurance_switch_rules (id, old_product_id, new_product_id, memo, source, is_active, created_at, updated_at)
+VALUES ('swr_e70dbe8a80fb', 'prd_3255af2f7a36', 'prd_2ae2899e09d7', '【テスト用ルール】運用コスト・特別勘定の選択肢を比較し、こだわり変額保険v2への切り替え余地を確認', 'master', 1, strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'), strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 ON CONFLICT(id) DO UPDATE SET
   old_product_id = excluded.old_product_id,
   new_product_id = excluded.new_product_id,
-  memo = excluded.memo;
+  memo = excluded.memo,
+  source = 'master',
+  updated_at = excluded.updated_at;
 
-DELETE FROM insurance_switch_rules WHERE id NOT IN ('swr_e70dbe8a80fb');
+DELETE FROM insurance_switch_rules WHERE source = 'master' AND id NOT IN ('swr_e70dbe8a80fb');

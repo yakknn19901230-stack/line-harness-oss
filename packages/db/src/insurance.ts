@@ -21,7 +21,12 @@ export interface InsuranceSwitchRule {
   old_product_id: string;
   new_product_id: string;
   memo: string | null;
+  /** 'master'=共通マスター投入分(seed管理) / 'custom'=管理画面で作成(第26弾) */
+  source: string;
+  /** 0で無効化(共通ルールは削除の代わりに無効化。seed再投入でも維持される) */
+  is_active: number;
   created_at: string;
+  updated_at: string | null;
 }
 
 /** 種類名の一覧(有効な商品を1件以上持つもの)。 */
@@ -112,10 +117,16 @@ export interface InsuranceSwitchRuleWithProducts extends InsuranceSwitchRule {
   new_product_name: string | null;
 }
 
-/** 乗り換え提案パネル用: 新旧の商品名称付きで全ルールを返す(233件規模の参照なので全件)。 */
+/**
+ * 乗り換え提案パネル用: 新旧の商品名称付きでルールを返す(233件規模の参照なので全件)。
+ * 既定は is_active=1 のみ(判定・パネルは無効化ルールを見ない)。
+ * includeInactive=true は設定画面用(無効化済みも一覧に出して再有効化できるように)。
+ */
 export async function getInsuranceSwitchRulesWithProducts(
   db: D1Database,
+  opts: { includeInactive?: boolean } = {},
 ): Promise<InsuranceSwitchRuleWithProducts[]> {
+  const where = opts.includeInactive ? '' : 'WHERE sr.is_active = 1';
   const result = await db
     .prepare(
       `SELECT sr.*,
@@ -128,10 +139,85 @@ export async function getInsuranceSwitchRulesWithProducts(
        FROM insurance_switch_rules sr
        LEFT JOIN insurance_products op ON op.id = sr.old_product_id
        LEFT JOIN insurance_products np ON np.id = sr.new_product_id
+       ${where}
        ORDER BY sr.created_at ASC`,
     )
     .all<InsuranceSwitchRuleWithProducts>();
   return result.results;
+}
+
+export async function getInsuranceSwitchRuleById(
+  db: D1Database,
+  id: string,
+): Promise<InsuranceSwitchRule | null> {
+  return db.prepare(`SELECT * FROM insurance_switch_rules WHERE id = ?`).bind(id).first<InsuranceSwitchRule>();
+}
+
+/** 同一ペア(old→new)の有効ルールを引く(重複チェック用)。excludeId は自分自身の除外(PUT用)。 */
+export async function findActiveSwitchRuleByPair(
+  db: D1Database,
+  oldProductId: string,
+  newProductId: string,
+  excludeId?: string,
+): Promise<InsuranceSwitchRule | null> {
+  const sql = excludeId
+    ? `SELECT * FROM insurance_switch_rules WHERE old_product_id = ? AND new_product_id = ? AND is_active = 1 AND id != ?`
+    : `SELECT * FROM insurance_switch_rules WHERE old_product_id = ? AND new_product_id = ? AND is_active = 1`;
+  const stmt = excludeId
+    ? db.prepare(sql).bind(oldProductId, newProductId, excludeId)
+    : db.prepare(sql).bind(oldProductId, newProductId);
+  return stmt.first<InsuranceSwitchRule>();
+}
+
+/** 管理画面からの自分ルール作成(source='custom')。第26弾。 */
+export async function createInsuranceSwitchRule(
+  db: D1Database,
+  input: { id: string; oldProductId: string; newProductId: string; memo: string | null },
+): Promise<void> {
+  const now = jstNow();
+  await db
+    .prepare(
+      `INSERT INTO insurance_switch_rules (id, old_product_id, new_product_id, memo, source, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'custom', 1, ?, ?)`,
+    )
+    .bind(input.id, input.oldProductId, input.newProductId, input.memo, now, now)
+    .run();
+}
+
+/** 自分ルール(custom)の編集。source/is_activeは変更しない。IDは安定(採番し直さない)。 */
+export async function updateInsuranceSwitchRule(
+  db: D1Database,
+  id: string,
+  input: { oldProductId: string; newProductId: string; memo: string | null },
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE insurance_switch_rules
+       SET old_product_id = ?, new_product_id = ?, memo = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(input.oldProductId, input.newProductId, input.memo, jstNow(), id)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
+}
+
+/** 有効/無効の切り替え(master行もcustom行も可)。無効化はseed再投入でも維持される。 */
+export async function setInsuranceSwitchRuleActive(
+  db: D1Database,
+  id: string,
+  isActive: boolean,
+): Promise<boolean> {
+  const result = await db
+    .prepare(`UPDATE insurance_switch_rules SET is_active = ?, updated_at = ? WHERE id = ?`)
+    .bind(isActive ? 1 : 0, jstNow(), id)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
+}
+
+/** 自分ルール(custom)の削除。master行の保護は呼び出し側(ルート)で行う。 */
+export async function deleteInsuranceSwitchRule(db: D1Database, id: string): Promise<boolean> {
+  const result = await db.prepare(`DELETE FROM insurance_switch_rules WHERE id = ?`).bind(id).run();
+  return (result.meta?.changes ?? 0) > 0;
 }
 
 export interface UpsertInsuranceProductInput {

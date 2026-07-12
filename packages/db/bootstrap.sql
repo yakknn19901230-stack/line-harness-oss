@@ -483,7 +483,7 @@ CREATE TABLE insurance_switch_rules (
   new_product_id TEXT NOT NULL,
   memo TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
-);
+, source TEXT NOT NULL DEFAULT 'master', is_active INTEGER NOT NULL DEFAULT 1, updated_at TEXT);
 
 CREATE TABLE line_accounts (
   id                   TEXT PRIMARY KEY,

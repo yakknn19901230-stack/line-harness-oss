@@ -53,7 +53,8 @@
     "045_menus_auto_tag.sql",
     "046_insurance_master.sql",
     "047_friend_contracts.sql",
-    "048_contract_switch_notified.sql"
+    "048_contract_switch_notified.sql",
+    "050_switch_rules_two_tier.sql"
   ],
-  "migrationCount": 54
+  "migrationCount": 55
 }
