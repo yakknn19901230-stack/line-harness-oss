@@ -15,6 +15,7 @@ import { processReminderDeliveries } from './services/reminder-delivery.js';
 import { checkAccountHealth } from './services/ban-monitor.js';
 import { refreshLineAccessTokens } from './services/token-refresh.js';
 import { processInsightFetch } from './services/insight-fetcher.js';
+import { claimSixHourlySlot } from './services/cron-gate.js';
 import { processDueReminders } from './services/booking-reminders.js';
 import { runExpirer } from './services/booking-expirer.js';
 import { processDueEventReminders } from './services/event-booking-reminders.js';
@@ -577,7 +578,7 @@ app.notFound(notFoundHandler);
 
 // Scheduled handler for cron triggers — runs for all active LINE accounts
 async function scheduled(
-  event: ScheduledEvent,
+  _event: ScheduledEvent,
   env: Env['Bindings'],
   _ctx: ExecutionContext,
 ): Promise<void> {
@@ -634,8 +635,14 @@ async function scheduled(
     console.error('booking-reminders error:', e);
   }
 
-  // Booking expirer — runs only on the 6h cron tick.
-  if (event.cron === '0 */6 * * *') {
+  // Expirer系は6時間おき。以前は 0 */6 の専用cronだったが、Workers cronの
+  // アカウント上限(Free=5/Paid=250)対策で5分cron 1本に統合し、前回実行から
+  // 6時間経過していたら実行するガードに置き換えた(±5分の精度劣化は許容)。
+  // 石黒環境は旧cron併存中でも、このガードで6時間おき1回のまま変わらない。
+  const runSixHourly = await claimSixHourlySlot(env.DB);
+
+  // Booking expirer — 6-hourly (gated above).
+  if (runSixHourly) {
     try {
       const result = await runExpirer(env.DB, {
         now: new Date(),
@@ -662,8 +669,8 @@ async function scheduled(
     console.error('event-booking-reminders error:', e);
   }
 
-  // Event-booking expirer — 6h cron tick.
-  if (event.cron === '0 */6 * * *') {
+  // Event-booking expirer — 6-hourly (gated above).
+  if (runSixHourly) {
     try {
       const result = await runEventBookingExpirer(env.DB, { now: new Date() });
       console.log(
