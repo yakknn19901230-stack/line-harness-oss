@@ -6,6 +6,7 @@ import {
   getContractsByFriendId,
   replaceFriendContracts,
   getActiveInsuranceProducts,
+  getLineAccounts,
 } from '@line-crm/db';
 import { makeImportPseudoId } from '@line-crm/shared';
 import { planImport } from '../services/import-plan.js';
@@ -29,10 +30,12 @@ function jstTodayYmd(): string {
   return `${jst.getUTCFullYear()}-${String(jst.getUTCMonth() + 1).padStart(2, '0')}-${String(jst.getUTCDate()).padStart(2, '0')}`;
 }
 
-// POST /api/friends/import - body: { rows: ImportRowInput[] }
+// POST /api/friends/import - body: { rows: ImportRowInput[], lineAccountId?: string }
 friendsImport.post('/api/friends/import', async (c) => {
   try {
-    const body = await c.req.json<{ rows?: unknown }>().catch(() => ({}) as { rows?: unknown });
+    const body = await c.req
+      .json<{ rows?: unknown; lineAccountId?: unknown }>()
+      .catch(() => ({}) as { rows?: unknown; lineAccountId?: unknown });
     if (!Array.isArray(body.rows) || body.rows.length === 0) {
       return c.json({ success: false, error: 'rows must be a non-empty array' }, 400);
     }
@@ -44,6 +47,16 @@ friendsImport.post('/api/friends/import', async (c) => {
     }
 
     const db = c.env.DB;
+
+    // 所属アカウント: 一覧・今日の保全は line_account_id で絞り込むため、
+    // NULLのまま作ると画面に表示されない(第25弾修正)。UIは選択中アカウントを
+    // 渡してくる。未指定ならアカウントが1つだけの環境に限りそれを既定にする。
+    let lineAccountId =
+      typeof body.lineAccountId === 'string' && body.lineAccountId !== '' ? body.lineAccountId : null;
+    if (lineAccountId === null) {
+      const accounts = await getLineAccounts(db);
+      if (accounts.length === 1) lineAccountId = accounts[0].id;
+    }
 
     // 1回だけロード(行ごとの外部呼び出し禁止 — 商品照合はメモリで行う)
     const [existingFriends, products] = await Promise.all([
@@ -66,6 +79,7 @@ friendsImport.post('/api/friends/import', async (c) => {
           lineUserId: makeImportPseudoId(),
           displayName: f.displayName,
           metadataJson: f.metadataJson,
+          lineAccountId,
         }),
       ),
       ...plan.updates.map((u) => buildUpdateFriendMetadataStatement(db, u.friendId, u.metadataJson)),

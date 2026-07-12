@@ -27,6 +27,11 @@ export interface InsertImportFriendInput {
   displayName: string;
   /** JSON化済みのmetadata */
   metadataJson: string;
+  /**
+   * 所属アカウント。一覧・今日の保全は line_account_id で絞り込むため、
+   * NULLのまま作ると選択中アカウントの画面に表示されない(第25弾修正)。
+   */
+  lineAccountId: string | null;
 }
 
 /** インポートでの新規友だちINSERT文(実行はしない。呼び出し側がchunkしてbatchする)。 */
@@ -37,10 +42,10 @@ export function buildInsertImportFriendStatement(
   const now = jstNow();
   return db
     .prepare(
-      `INSERT INTO friends (id, line_user_id, display_name, is_following, metadata, created_at, updated_at)
-       VALUES (?, ?, ?, 1, ?, ?, ?)`,
+      `INSERT INTO friends (id, line_user_id, display_name, is_following, metadata, line_account_id, created_at, updated_at)
+       VALUES (?, ?, ?, 1, ?, ?, ?, ?)`,
     )
-    .bind(input.id, input.lineUserId, input.displayName, input.metadataJson, now, now);
+    .bind(input.id, input.lineUserId, input.displayName, input.metadataJson, input.lineAccountId, now, now);
 }
 
 /** インポートでの既存友だちmetadata更新文(実行はしない)。 */

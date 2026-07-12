@@ -303,11 +303,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ scene }),
       }),
-    /** 第25弾 — CSVインポートの確定(正規化済み行を送る。最大500行)。 */
-    import: (rows: ImportRowPayload[]) =>
+    /** 第25弾 — CSVインポートの確定(正規化済み行を送る。最大500行)。
+     *  lineAccountId は選択中アカウント。未指定はアカウントが1つだけの環境でのみ自動補完される。 */
+    import: (rows: ImportRowPayload[], lineAccountId?: string | null) =>
       fetchApi<ApiResponse<ImportResultData>>('/api/friends/import', {
         method: 'POST',
-        body: JSON.stringify({ rows }),
+        body: JSON.stringify({ rows, lineAccountId: lineAccountId ?? null }),
       }),
   },
   tags: {

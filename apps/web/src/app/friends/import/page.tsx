@@ -6,6 +6,7 @@ import { normalizeWidth, normalizeDate, normalizePhone } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import type { ImportRowPayload, ImportResultData } from '@/lib/api'
 import { useAllFriends } from '@/hooks/use-all-friends'
+import { useAccount } from '@/contexts/account-context'
 
 // 第25弾: CSV/Excelインポート。
 // パース・正規化・検証はすべてこのページ(ブラウザ)で行い、確定時に
@@ -163,8 +164,10 @@ function convertRow(raw: Record<string, string>): { payload: ImportRowPayload } 
 }
 
 export default function FriendsImportPage() {
+  // 取り込み先アカウント(未指定だと一覧・今日の保全のアカウント絞り込みに表示されない)
+  const { selectedAccountId } = useAccount()
   // 新規/既存の内訳プレビュー用に全友だちを1回取得(サーバー側と同じ「表示名+誕生日」キー)
-  const allFriends = useAllFriends(null)
+  const allFriends = useAllFriends(selectedAccountId)
   const [parsing, setParsing] = useState(false)
   const [importing, setImporting] = useState(false)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
@@ -242,7 +245,7 @@ export default function FriendsImportPage() {
     setImporting(true)
     setError('')
     try {
-      const res = await api.friends.import(preview.rows)
+      const res = await api.friends.import(preview.rows, selectedAccountId)
       if (!res.success) throw new Error(res.error || 'インポートに失敗しました。')
       // サーバー側skipの行番号(送信配列の1始まり)を元CSVの行番号へ引き直す
       const serverSkipped = res.data.skipped.map((s) => ({
