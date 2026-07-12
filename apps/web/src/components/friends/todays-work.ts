@@ -1,15 +1,16 @@
 // 「今日の保全」の対応済み判定・件数集計を一元化する共通ロジック。
-// 誕生日/更新/フォローの各パネルと、残り件数メーターが同じ定義を使うことで、
+// 誕生日/更新/フォロー/乗り換えの各パネルと、残り件数メーターが同じ定義を使うことで、
 // 「パネルから消えたのにメーターが減らない」といったズレを防ぐ。
 //
 // 対応済みの記録:
 //   - 誕生日:  friend.metadata.birthday_notified_at = 'YYYY-MM-DD'（従来どおり）
 //   - 更新:    friend_contracts.notified_at（第22弾で専用テーブルへ移行。
 //              一覧APIが同梱する friend.contracts[i].notifiedAt を読む）
-// どちらも「対応してから SUPPRESS_DAYS 日以内はパネルに出さない」= 同サイクルを抑止。
+//   - 乗り換え: friend_contracts.switch_notified_at（第23弾。同 friend.contracts[i].switchNotifiedAt）
+// いずれも「対応してから SUPPRESS_DAYS 日以内はパネルに出さない」= 同サイクルを抑止。
 // 年に一度のイベント（誕生日・年次更新）なら、翌年（約365日後）は再び出る。
 
-import type { FriendListItem } from '@/lib/api'
+import type { FriendContractItem, FriendListItem, SwitchRuleItem } from '@/lib/api'
 import { parseFollowups } from './customer-notes'
 
 export const BIRTHDAY_WINDOW_DAYS = 7
@@ -55,6 +56,52 @@ export function isContractSuppressed(notifiedAt: unknown, today: Date): boolean 
   return suppressedByNotifiedAt(notifiedAt, today)
 }
 
+/** friend_contracts.switch_notified_at による乗り換え提案の抑止判定(更新と同じ SUPPRESS_DAYS を共用)。 */
+export function isContractSwitchSuppressed(switchNotifiedAt: unknown, today: Date): boolean {
+  return suppressedByNotifiedAt(switchNotifiedAt, today)
+}
+
+/** 乗り換え提案の対象1件（契約×ルールの組）。 */
+export interface SwitchTarget {
+  friend: FriendListItem
+  contract: FriendContractItem
+  rule: SwitchRuleItem
+}
+
+/**
+ * 乗り換え提案の対象を抽出する（第23弾）。
+ * 契約の productId がルールの oldProductId に一致するものが対象。
+ * switch_notified_at から SUPPRESS_DAYS 日以内は抑止（更新パネルと同じ定数）。
+ * rules が空（未投入・取得失敗）なら常に0件 = パネルは静かに空になる。
+ * パネルとメーターの両方がこの関数を使うこと（判定をここ以外に書かない）。
+ */
+export function switchTargets(
+  friends: FriendListItem[],
+  rules: SwitchRuleItem[],
+  today: Date,
+): SwitchTarget[] {
+  if (rules.length === 0) return []
+  const rulesByOldProduct = new Map<string, SwitchRuleItem[]>()
+  for (const rule of rules) {
+    const list = rulesByOldProduct.get(rule.oldProductId) ?? []
+    list.push(rule)
+    rulesByOldProduct.set(rule.oldProductId, list)
+  }
+  const targets: SwitchTarget[] = []
+  for (const f of friends) {
+    for (const c of f.contracts ?? []) {
+      if (!c.productId) continue
+      const matched = rulesByOldProduct.get(c.productId)
+      if (!matched) continue
+      if (isContractSwitchSuppressed(c.switchNotifiedAt, today)) continue
+      for (const rule of matched) {
+        targets.push({ friend: f, contract: c, rule })
+      }
+    }
+  }
+  return targets
+}
+
 /** metadata.birthday("YYYY-MM-DD") から月日を取り出す。妥当でなければ null。 */
 export function parseMonthDay(raw: unknown): { month: number; day: number } | null {
   const ymd = toYmd(raw)
@@ -81,14 +128,20 @@ export interface TodaysWorkCounts {
   birthday: number
   renewal: number
   followup: number
+  switch: number
   total: number
 }
 
 /**
- * ダッシュボードの残り件数メーター用。誕生日/更新/フォローの「今日やる分」を
- * 各パネルと同じ窓・同じ抑止ルールで数える。
+ * ダッシュボードの残り件数メーター用。誕生日/更新/フォロー/乗り換えの「今日やる分」を
+ * 各パネルと同じ窓・同じ抑止ルールで数える。rules は乗り換え提案パネルと共有の
+ * 取得結果を渡す（空なら乗り換え0件）。
  */
-export function countTodaysWork(friends: FriendListItem[], today: Date): TodaysWorkCounts {
+export function countTodaysWork(
+  friends: FriendListItem[],
+  rules: SwitchRuleItem[],
+  today: Date,
+): TodaysWorkCounts {
   let birthday = 0
   let renewal = 0
   let followup = 0
@@ -112,5 +165,13 @@ export function countTodaysWork(friends: FriendListItem[], today: Date): TodaysW
       if (du !== null && du <= 0) followup++
     }
   }
-  return { birthday, renewal, followup, total: birthday + renewal + followup }
+  // 乗り換えはパネルと同じ switchTargets を使う（判定の二重実装を作らない）。
+  const switchCount = switchTargets(friends, rules, today).length
+  return {
+    birthday,
+    renewal,
+    followup,
+    switch: switchCount,
+    total: birthday + renewal + followup + switchCount,
+  }
 }

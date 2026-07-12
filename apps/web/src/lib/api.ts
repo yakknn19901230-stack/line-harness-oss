@@ -140,6 +140,8 @@ export type FriendContractItem = {
   freeTextName: string | null
   renewalDate: string | null
   notifiedAt: string | null
+  /** 第23弾 — 乗り換え提案パネル「対応済み」記録(YYYY-MM-DD)。notifiedAt と同じ思想の別カラム。 */
+  switchNotifiedAt: string | null
   sortOrder: number
 }
 
@@ -159,6 +161,20 @@ export type InsuranceProductItem = {
   categoryName: string
   companyName: string
   productName: string
+}
+
+/** 第23弾 — 乗り換えルール1件(新旧両側の名称付き)。マスターは hozenkun-assistant 側。 */
+export type SwitchRuleItem = {
+  id: string
+  oldProductId: string
+  newProductId: string
+  memo: string | null
+  oldCategoryName: string | null
+  oldCompanyName: string | null
+  oldProductName: string | null
+  newCategoryName: string | null
+  newCompanyName: string | null
+  newProductName: string | null
 }
 
 /** 照合済みなら「会社名 商品名」、未照合なら自由記述を表示名にする。 */
@@ -187,6 +203,8 @@ export const api = {
       fetchApi<ApiResponse<InsuranceProductItem[]>>(
         '/api/insurance/products?' + new URLSearchParams({ category, company }),
       ),
+    /** 第23弾 — 乗り換えルール一覧(乗り換え提案パネル用)。 */
+    switchRules: () => fetchApi<ApiResponse<SwitchRuleItem[]>>('/api/insurance/switch-rules'),
   },
   friends: {
     list: (params?: FriendListParams) => {
@@ -246,6 +264,12 @@ export const api = {
         fetchApi<ApiResponse<null>>(`/api/friends/${id}/contracts/${contractId}/notified`, {
           method: 'PATCH',
           body: JSON.stringify({ notifiedAt }),
+        }),
+      /** 乗り換え提案パネルの「対応済み」トグル(第23弾)。 */
+      setSwitchNotified: (id: string, contractId: string, switchNotifiedAt: string | null) =>
+        fetchApi<ApiResponse<null>>(`/api/friends/${id}/contracts/${contractId}/switch-notified`, {
+          method: 'PATCH',
+          body: JSON.stringify({ switchNotifiedAt }),
         }),
     },
   },

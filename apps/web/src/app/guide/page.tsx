@@ -135,7 +135,7 @@ export default function GuidePage() {
         <ol className="space-y-3">
           <Step n={1}>
             <Link href="/" className="text-brand font-medium underline">ダッシュボード</Link>
-            を開きます。「今週の誕生日」「契約更新が近い顧客」「今日のフォロー予定」が出ています。
+            を開きます。「今週の誕生日」「契約更新が近い顧客」「今日のフォロー予定」「乗り換え提案の候補」が出ています。
           </Step>
           <Step n={2}>
             出ている人を上から順に対応します。名前を押すとチャットが開き、

@@ -4,6 +4,7 @@ import {
   getContractsByFriendId,
   replaceFriendContracts,
   setContractNotifiedAt,
+  setContractSwitchNotifiedAt,
   findMissingInsuranceProductIds,
 } from '@line-crm/db';
 import type { FriendContractWithProduct, ReplaceContractInput } from '@line-crm/db';
@@ -25,6 +26,7 @@ export function serializeContract(row: FriendContractWithProduct) {
     freeTextName: row.free_text_name,
     renewalDate: row.renewal_date,
     notifiedAt: row.notified_at,
+    switchNotifiedAt: row.switch_notified_at,
     sortOrder: row.sort_order,
   };
 }
@@ -37,6 +39,7 @@ interface ContractBody {
   freeTextName?: string | null;
   renewalDate?: string | null;
   notifiedAt?: string | null;
+  switchNotifiedAt?: string | null;
 }
 
 // GET /api/friends/:id/contracts - 契約一覧(sort_order順、照合済みは名称付き)
@@ -82,6 +85,7 @@ friendContracts.put('/api/friends/:id/contracts', async (c) => {
           typeof raw.renewalDate === 'string' && raw.renewalDate !== '' ? raw.renewalDate : null,
         // undefined = 既存行から引き継ぐ / null = クリア / 文字列 = 明示指定
         notified_at: raw.notifiedAt === undefined ? undefined : raw.notifiedAt,
+        switch_notified_at: raw.switchNotifiedAt === undefined ? undefined : raw.switchNotifiedAt,
       }))
       .filter((row) => row.product_id !== null || row.free_text_name !== null);
 
@@ -129,6 +133,27 @@ friendContracts.patch('/api/friends/:id/contracts/:contractId/notified', async (
     return c.json({ success: true, data: null });
   } catch (err) {
     console.error('PATCH /api/friends/:id/contracts/:contractId/notified error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// PATCH /api/friends/:id/contracts/:contractId/switch-notified - 乗り換え提案「対応済み」トグル(第23弾)
+friendContracts.patch('/api/friends/:id/contracts/:contractId/switch-notified', async (c) => {
+  try {
+    const friendId = c.req.param('id');
+    const contractId = c.req.param('contractId');
+    const body = await c.req.json<{ switchNotifiedAt?: string | null }>();
+    const switchNotifiedAt = body.switchNotifiedAt ?? null;
+    if (switchNotifiedAt !== null && !YMD_RE.test(switchNotifiedAt)) {
+      return c.json({ success: false, error: 'switchNotifiedAt must be YYYY-MM-DD or null' }, 400);
+    }
+    const updated = await setContractSwitchNotifiedAt(c.env.DB, friendId, contractId, switchNotifiedAt);
+    if (!updated) {
+      return c.json({ success: false, error: 'Contract not found' }, 404);
+    }
+    return c.json({ success: true, data: null });
+  } catch (err) {
+    console.error('PATCH /api/friends/:id/contracts/:contractId/switch-notified error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });

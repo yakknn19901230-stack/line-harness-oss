@@ -102,6 +102,38 @@ export async function getInsuranceSwitchRules(
   return result.results;
 }
 
+/** 第23弾: insurance_products を2回JOINして新旧両側の名称を付けたルール行。 */
+export interface InsuranceSwitchRuleWithProducts extends InsuranceSwitchRule {
+  old_category_name: string | null;
+  old_company_name: string | null;
+  old_product_name: string | null;
+  new_category_name: string | null;
+  new_company_name: string | null;
+  new_product_name: string | null;
+}
+
+/** 乗り換え提案パネル用: 新旧の商品名称付きで全ルールを返す(233件規模の参照なので全件)。 */
+export async function getInsuranceSwitchRulesWithProducts(
+  db: D1Database,
+): Promise<InsuranceSwitchRuleWithProducts[]> {
+  const result = await db
+    .prepare(
+      `SELECT sr.*,
+              op.category_name AS old_category_name,
+              op.company_name  AS old_company_name,
+              op.product_name  AS old_product_name,
+              np.category_name AS new_category_name,
+              np.company_name  AS new_company_name,
+              np.product_name  AS new_product_name
+       FROM insurance_switch_rules sr
+       LEFT JOIN insurance_products op ON op.id = sr.old_product_id
+       LEFT JOIN insurance_products np ON np.id = sr.new_product_id
+       ORDER BY sr.created_at ASC`,
+    )
+    .all<InsuranceSwitchRuleWithProducts>();
+  return result.results;
+}
+
 export interface UpsertInsuranceProductInput {
   id: string;
   category_name: string;

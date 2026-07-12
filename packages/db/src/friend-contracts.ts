@@ -12,6 +12,8 @@ export interface FriendContract {
   free_text_name: string | null;
   renewal_date: string | null;
   notified_at: string | null;
+  /** 第23弾: 乗り換え提案パネル「対応済み」記録(YYYY-MM-DD)。notified_at と同じ思想の別カラム。 */
+  switch_notified_at: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -66,6 +68,8 @@ export interface ReplaceContractInput {
   renewal_date?: string | null;
   /** 明示指定があれば優先。undefined なら既存行(id一致)から引き継ぐ。 */
   notified_at?: string | null;
+  /** 明示指定があれば優先。undefined なら既存行(id一致)から引き継ぐ(notified_at と同様)。 */
+  switch_notified_at?: string | null;
 }
 
 /**
@@ -91,12 +95,16 @@ export async function replaceFriendContracts(
     const id = prev ? prev.id : crypto.randomUUID();
     const notifiedAt =
       input.notified_at !== undefined ? input.notified_at : (prev?.notified_at ?? null);
+    const switchNotifiedAt =
+      input.switch_notified_at !== undefined
+        ? input.switch_notified_at
+        : (prev?.switch_notified_at ?? null);
     statements.push(
       db
         .prepare(
           `INSERT INTO friend_contracts
-             (id, friend_id, product_id, free_text_name, renewal_date, notified_at, sort_order, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (id, friend_id, product_id, free_text_name, renewal_date, notified_at, switch_notified_at, sort_order, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           id,
@@ -105,6 +113,7 @@ export async function replaceFriendContracts(
           input.free_text_name ?? null,
           input.renewal_date ?? null,
           notifiedAt,
+          switchNotifiedAt,
           index,
           prev?.created_at ?? now,
           now,
@@ -128,6 +137,23 @@ export async function setContractNotifiedAt(
        WHERE id = ? AND friend_id = ?`,
     )
     .bind(notifiedAt, jstNow(), contractId, friendId)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
+}
+
+/** 乗り換え提案パネル「対応済み」トグル(第23弾)。行が無ければ false。 */
+export async function setContractSwitchNotifiedAt(
+  db: D1Database,
+  friendId: string,
+  contractId: string,
+  switchNotifiedAt: string | null,
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE friend_contracts SET switch_notified_at = ?, updated_at = ?
+       WHERE id = ? AND friend_id = ?`,
+    )
+    .bind(switchNotifiedAt, jstNow(), contractId, friendId)
     .run();
   return (result.meta?.changes ?? 0) > 0;
 }

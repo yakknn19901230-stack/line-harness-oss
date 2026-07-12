@@ -383,7 +383,7 @@ CREATE TABLE friend_contracts (
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now','+9 hours')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f','now','+9 hours'))
-);
+, switch_notified_at TEXT);
 
 CREATE TABLE friend_reminder_deliveries (
   id                TEXT PRIMARY KEY,

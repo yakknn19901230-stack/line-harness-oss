@@ -7,8 +7,10 @@ import CcPromptButton from '@/components/cc-prompt-button'
 import BirthdayPanel from '@/components/friends/birthday-panel'
 import RenewalPanel from '@/components/friends/renewal-panel'
 import FollowupPanel from '@/components/friends/followup-panel'
+import SwitchPanel from '@/components/friends/switch-panel'
 import TodaysWorkMeter from '@/components/friends/todays-work-meter'
 import { useAllFriends } from '@/hooks/use-all-friends'
+import { useSwitchRules } from '@/hooks/use-switch-rules'
 import { isSimpleMode } from '@/lib/simple-mode'
 import { useAccount } from '@/contexts/account-context'
 
@@ -105,8 +107,10 @@ export default function DashboardPage() {
   // パネルで対応済みにしたら increment → 全友だちを取り直して各パネル/メーターを更新。
   const [workKey, setWorkKey] = useState(0)
   const bumpWork = () => setWorkKey((k) => k + 1)
-  // 「今日の保全」の3パネル＋メーターは、この1回の取得を共有する（従来は各自が全件取得）。
+  // 「今日の保全」の4パネル＋メーターは、この1回の取得を共有する（従来は各自が全件取得）。
   const todaysWork = useAllFriends(selectedAccountId, workKey)
+  // 乗り換えルールも1回だけ取得し、乗り換え提案パネルとメーターで共有する（第23弾）。
+  const switchRules = useSwitchRules()
   // SIMPLE_MODE では統計カードを「友だち数」だけにし、クイックアクションを隠す。
   const simple = isSimpleMode()
 
@@ -197,11 +201,12 @@ export default function DashboardPage() {
         </a>
       )}
 
-      {/* 今日の保全: 残り件数メーター＋誕生日／更新／フォローの各パネル（全件取得は1回だけ共有） */}
-      <TodaysWorkMeter friends={todaysWork.friends} loading={todaysWork.loading} />
+      {/* 今日の保全: 残り件数メーター＋誕生日／更新／フォロー／乗り換えの各パネル（全件取得・ルール取得は1回だけ共有） */}
+      <TodaysWorkMeter friends={todaysWork.friends} rules={switchRules.rules} loading={todaysWork.loading || switchRules.loading} />
       <BirthdayPanel friends={todaysWork.friends} loading={todaysWork.loading} error={todaysWork.error} onToast={showToast} onChanged={bumpWork} />
       <RenewalPanel friends={todaysWork.friends} loading={todaysWork.loading} error={todaysWork.error} onToast={showToast} onChanged={bumpWork} />
       <FollowupPanel friends={todaysWork.friends} loading={todaysWork.loading} error={todaysWork.error} onToast={showToast} onChanged={bumpWork} />
+      <SwitchPanel friends={todaysWork.friends} rules={switchRules.rules} loading={todaysWork.loading || switchRules.loading} error={todaysWork.error} onToast={showToast} onChanged={bumpWork} />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
