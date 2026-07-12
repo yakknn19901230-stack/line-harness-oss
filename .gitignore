@@ -15,3 +15,6 @@ apps/web/out/
 apps/worker/dist/
 .worktrees/
 .claude/worktrees/
+
+# 第27弾: provisionが台帳から生成するインスタンス別config(hozenkun-assistant/provision/で再生成可能)
+apps/worker/wrangler.*.jsonc
