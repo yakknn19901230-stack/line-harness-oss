@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect, useCallback } from 'react'
 import type { Tag } from '@line-crm/shared'
 import { api } from '@/lib/api'
@@ -309,9 +311,10 @@ export default function FriendsPage() {
         </div>
       </div>
 
-      {/* 選択モードの操作行（複数選択→一括タグ付け） */}
+      {/* 選択モードの操作行（複数選択→一括タグ付け）＋CSVインポート導線（第25弾） */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {!selectionMode ? (
+          <>
           <button
             type="button"
             onClick={toggleSelectionMode}
@@ -319,6 +322,13 @@ export default function FriendsPage() {
           >
             選択
           </button>
+          <Link
+            href="/friends/import"
+            className="inline-flex items-center min-h-[44px] px-4 rounded-lg text-sm font-medium text-brand border border-gray-300 hover:bg-gray-50 transition-colors"
+          >
+            CSVインポート
+          </Link>
+          </>
         ) : (
           <>
             <button

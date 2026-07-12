@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, contractDisplayName } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
+import { isImportPseudoId } from '@line-crm/shared'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import { todayYmd } from './customer-notes'
 import { isContractSuppressed, RENEWAL_WINDOW_DAYS } from './todays-work'
 import MessageSendModal from './message-send-modal'
 import PanelShell from './panel-shell'
+import LineUnlinkedBadge from './line-unlinked-badge'
 
 /** スマホで一度に見せる最大件数（超過分は「もっと見る」で展開）。 */
 const MOBILE_LIMIT = 5
@@ -24,6 +26,8 @@ interface Props {
 }
 
 interface UpcomingRenewal {
+  /** LINE未連携(CSVインポート由来)。送信系を無効化する(第25弾) */
+  lineUnlinked: boolean
   friendId: string
   name: string
   contractName: string
@@ -79,6 +83,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
             contractId: c.id,
             dateLabel: parsed.label,
             daysUntil: parsed.days,
+            lineUnlinked: isImportPseudoId(f.lineUserId),
           })
         }
       }
@@ -141,6 +146,11 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
                 className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-brand/5 to-white"
               >
                 <div className="min-w-0">
+                  {r.lineUnlinked ? (
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-full">
+                      {r.name || '名前なし'} <LineUnlinkedBadge />
+                    </p>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => router.push(`/chats?friend=${r.friendId}&scene=renewal_notice`)}
@@ -149,6 +159,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
                   >
                     {r.name || '名前なし'}
                   </button>
+                  )}
                   <p className="text-xs text-gray-600 mt-0.5 truncate">{r.contractName}</p>
                   <p className="text-xs text-gray-600 mt-0.5">
                     更新 {r.dateLabel}
@@ -162,6 +173,11 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
                   </p>
                 </div>
                 <div className="mt-auto flex items-center gap-2">
+                  {r.lineUnlinked ? (
+                    <span className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-gray-400 bg-gray-100 rounded-lg flex items-center justify-center">
+                    LINE未連携
+                  </span>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => setSendTarget({ id: r.friendId, name: r.name, contractId: r.contractId })}
@@ -170,6 +186,7 @@ export default function RenewalPanel({ friends, loading, error, onToast, onChang
                   >
                     ご案内を送る
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => markDone({ friendId: r.friendId, contractId: r.contractId, name: r.name })}

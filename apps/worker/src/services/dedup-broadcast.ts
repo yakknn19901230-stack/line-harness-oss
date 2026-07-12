@@ -78,6 +78,7 @@ export async function computeDedupBroadcastPreview(
     SELECT line_account_id, COUNT(*) AS cnt
     FROM friends
     WHERE is_following = 1
+      AND line_user_id NOT LIKE 'import:%'
       AND line_account_id IN (${inPlaceholders})
       AND line_account_id IS NOT NULL
       ${tagJoinForSelectedCount}
@@ -108,6 +109,7 @@ export async function computeDedupBroadcastPreview(
         COALESCE(${URL_TOKEN_SQL}, 'uid:'||f.user_id, 'solo:'||f.id) AS ident_key
       FROM friends f
       WHERE f.is_following = 1
+        AND f.line_user_id NOT LIKE 'import:%'
         AND f.line_account_id IN (${inPlaceholders})
         AND f.line_account_id IS NOT NULL
         ${tagJoinForRanked}

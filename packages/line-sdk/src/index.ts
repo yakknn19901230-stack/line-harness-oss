@@ -1,4 +1,4 @@
-export { LineClient } from './client.js';
+export { LineClient, IMPORT_PSEUDO_ID_PREFIX } from './client.js';
 export { verifySignature } from './webhook.js';
 export {
   textMessage,

@@ -1,8 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { isImportPseudoId } from '@line-crm/shared'
 import type { FriendListItem } from '@/lib/api'
 import TagBadge from './tag-badge'
+import LineUnlinkedBadge from './line-unlinked-badge'
 import { metaDate, getContracts, toSlashDate } from './friend-list-row'
 import { latestNotePreview } from './customer-notes'
 
@@ -24,7 +26,12 @@ interface Props {
  */
 export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, onSendMessageClick, selectionMode = false, selected = false, onToggleSelect }: Props) {
   const router = useRouter()
-  const navigateToChat = () => router.push(`/chats?friend=${friend.id}`)
+  // LINE未連携(CSVインポート由来)はチャット遷移・メッセージ送信を無効化する(第25弾)
+  const lineUnlinked = isImportPseudoId(friend.lineUserId)
+  const navigateToChat = () => {
+    if (lineUnlinked) return
+    router.push(`/chats?friend=${friend.id}`)
+  }
   const incoming = friend.latestIncomingMessage
   const meta = (friend.metadata ?? {}) as Record<string, unknown>
   const birthday = metaDate(meta.birthday)
@@ -68,6 +75,7 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="text-[15px] font-semibold text-gray-900 truncate flex-1">{friend.displayName}</p>
+              {lineUnlinked && <LineUnlinkedBadge />}
               {friend.chatStatus === 'unread' ? (
                 <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-red-100 text-red-700">未対応</span>
               ) : friend.chatStatus === 'in_progress' ? (
@@ -119,6 +127,11 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
       {/* 操作ボタン（親指サイズ 44px）。選択モード中は隠す（選択に集中）。 */}
       {!selectionMode && (
       <div className="flex items-center gap-2 mt-3">
+        {lineUnlinked ? (
+          <span className="flex-1 min-h-[44px] rounded-lg text-sm font-medium text-gray-400 bg-gray-100 flex items-center justify-center">
+            LINE未連携のため送信不可
+          </span>
+        ) : (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onSendMessageClick() }}
@@ -127,6 +140,7 @@ export default function FriendCard({ friend, onTagEditClick, onEditInfoClick, on
         >
           メッセージを送る
         </button>
+        )}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onEditInfoClick() }}

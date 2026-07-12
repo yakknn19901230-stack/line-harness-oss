@@ -93,7 +93,8 @@ export function buildSegmentQuery(condition: SegmentCondition): { sql: string; b
 
   const separator = condition.operator === 'AND' ? ' AND ' : ' OR '
   const where = clauses.length > 0 ? clauses.join(separator) : '1=1'
-  const sql = `SELECT f.id, f.line_user_id FROM friends f WHERE ${where}`
+  // LINE未連携の疑似ID(第25弾 CSVインポート)はセグメント配信の対象・集計から常に除外
+  const sql = `SELECT f.id, f.line_user_id FROM friends f WHERE f.line_user_id NOT LIKE 'import:%' AND (${where})`
 
   return { sql, bindings }
 }

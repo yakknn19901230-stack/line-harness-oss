@@ -4,9 +4,11 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
+import { isImportPseudoId } from '@line-crm/shared'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import MessageSendModal from './message-send-modal'
 import PanelShell from './panel-shell'
+import LineUnlinkedBadge from './line-unlinked-badge'
 import { parseFollowups, ymdToSlash } from './customer-notes'
 
 /** スマホで一度に見せる最大件数（超過分は「もっと見る」で展開）。 */
@@ -23,6 +25,8 @@ interface Props {
 }
 
 interface DueFollowup {
+  /** LINE未連携(CSVインポート由来)。送信系を無効化する(第25弾) */
+  lineUnlinked: boolean
   friendId: string
   name: string
   note: string
@@ -79,6 +83,7 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
           dateLabel: ymdToSlash(fu.date),
           days,
           index,
+          lineUnlinked: isImportPseudoId(f.lineUserId),
         })
       })
     }
@@ -146,6 +151,11 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
                 className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-accent/10 to-white"
               >
                 <div className="min-w-0">
+                  {d.lineUnlinked ? (
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-full">
+                      {d.name || '名前なし'} <LineUnlinkedBadge />
+                    </p>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => router.push(`/chats?friend=${d.friendId}`)}
@@ -154,6 +164,7 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
                   >
                     {d.name || '名前なし'}
                   </button>
+                  )}
                   <p className="text-xs text-gray-700 mt-0.5 break-words">{d.note || '（ひとことなし）'}</p>
                   <p className="text-xs text-gray-600 mt-0.5">
                     期日 {d.dateLabel}
@@ -167,6 +178,11 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
                   </p>
                 </div>
                 <div className="mt-auto flex items-center gap-2">
+                  {d.lineUnlinked ? (
+                    <span className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-gray-400 bg-gray-100 rounded-lg flex items-center justify-center">
+                    LINE未連携
+                  </span>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => setSendTarget(d)}
@@ -175,6 +191,7 @@ export default function FollowupPanel({ friends, loading, error, onToast, onChan
                   >
                     メッセージを送る
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => markDone(d)}

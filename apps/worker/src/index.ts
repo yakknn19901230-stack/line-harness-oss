@@ -79,6 +79,8 @@ import { insurance } from './routes/insurance.js';
 import { friendContracts } from './routes/friend-contracts.js';
 // 第24弾: AIメッセージ下書き(中継ゲートウェイ方式)
 import { aiDraft } from './routes/ai-draft.js';
+// 第25弾: CSV/Excelインポート
+import { friendsImport } from './routes/friends-import.js';
 import adminVersion from './routes/admin-version.js';
 import adminUpdate from './routes/admin-update.js';
 
@@ -203,6 +205,8 @@ app.route('/', insurance);
 app.route('/', friendContracts);
 // 第24弾 — AIメッセージ下書きAPI (/api/friends/:id/ai-draft)
 app.route('/', aiDraft);
+// 第25弾 — CSVインポートAPI (/api/friends/import)
+app.route('/', friendsImport);
 
 // Phase 5 (upgrade flow) — public build metadata endpoint. Mounted under
 // /admin/ but intentionally unauthenticated: the dashboard fetches /admin/version

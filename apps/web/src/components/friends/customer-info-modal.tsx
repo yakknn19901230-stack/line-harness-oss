@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { isImportPseudoId } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import type { FriendContractItem, InsuranceProductItem } from '@/lib/api'
 import DateInput, { storedToDisplay, displayToStored } from './date-input'
+import LineUnlinkedBadge from './line-unlinked-badge'
 import {
   parseNotes,
   parseFollowups,
@@ -17,6 +19,8 @@ interface Props {
   friendId: string
   /** 見出しに出す友だちの表示名（一覧が持っている値をそのまま渡す） */
   friendName: string
+  /** LINE未連携バッジの判定用（一覧が持っている値をそのまま渡す。省略時はバッジなし） */
+  lineUserId?: string | null
   onClose: () => void
   /** 保存成功時。呼び出し側で一覧の再読込やトースト表示を行う */
   onSaved: (message: string) => void
@@ -94,7 +98,7 @@ function asString(raw: unknown): string {
  * 連絡先（電話・メール）保存時は、既存の users API で友だち⇔ユーザーのUUIDリンクを
  * 自動実行する（LINE BAN 時の顧客データ再接続のための裏の保険）。
  */
-export default function CustomerInfoModal({ friendId, friendName, onClose, onSaved, onSaveError }: Props) {
+export default function CustomerInfoModal({ friendId, friendName, lineUserId, onClose, onSaved, onSaveError }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -400,6 +404,7 @@ export default function CustomerInfoModal({ friendId, friendName, onClose, onSav
           <h2 className="text-base font-semibold text-gray-900">顧客情報を編集</h2>
           <p className="text-xs text-gray-500 mt-0.5 truncate">
             {friendName || '名前なし'} さんの情報
+            {isImportPseudoId(lineUserId) && <LineUnlinkedBadge className="ml-2" />}
           </p>
         </div>
 

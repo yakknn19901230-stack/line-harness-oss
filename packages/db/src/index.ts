@@ -30,6 +30,7 @@ export * from './message-templates';
 export * from './rich-menus';
 export * from './insurance';
 export * from './friend-contracts';
+export * from './import-friends';
 
 /**
  * Thin wrapper around D1Database.

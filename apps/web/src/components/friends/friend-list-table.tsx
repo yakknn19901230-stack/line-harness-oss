@@ -43,7 +43,7 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   // 顧客情報 (誕生日・契約更新日) 編集モーダルの対象。null で閉じている。
-  const [editingFriend, setEditingFriend] = useState<{ id: string; name: string } | null>(null)
+  const [editingFriend, setEditingFriend] = useState<{ id: string; name: string; lineUserId: string } | null>(null)
   // 場面別メッセージ送信モーダルの対象。null で閉じている。
   const [messageFriend, setMessageFriend] = useState<{ id: string; name: string } | null>(null)
   // スマホのタグ編集モーダルの対象（シート型・44px）。null で閉じている。
@@ -133,7 +133,7 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
               <FriendListRow
                 friend={friend}
                 onTagEditClick={() => toggleExpand(friend.id)}
-                onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName })}
+                onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName, lineUserId: friend.lineUserId })}
                 onSendMessageClick={() => setMessageFriend({ id: friend.id, name: friend.displayName })}
                 selectionMode={selectionMode}
                 selected={selectedIds?.has(friend.id) ?? false}
@@ -153,7 +153,7 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
               friend={friend}
               // スマホは実機で押しにくかったインライン展開をやめ、シート型モーダルを開く。
               onTagEditClick={() => setTagEditFriend(friend)}
-              onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName })}
+              onEditInfoClick={() => setEditingFriend({ id: friend.id, name: friend.displayName, lineUserId: friend.lineUserId })}
               onSendMessageClick={() => setMessageFriend({ id: friend.id, name: friend.displayName })}
               selectionMode={selectionMode}
               selected={selectedIds?.has(friend.id) ?? false}
@@ -168,6 +168,7 @@ export default function FriendListTable({ friends, allTags, onRefresh, onCustome
       <CustomerInfoModal
         friendId={editingFriend.id}
         friendName={editingFriend.name}
+        lineUserId={editingFriend.lineUserId}
         onClose={() => setEditingFriend(null)}
         onSaved={(message) => {
           onCustomerInfoSaved?.(message)

@@ -4,11 +4,13 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { FriendListItem } from '@/lib/api'
+import { isImportPseudoId } from '@line-crm/shared'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import { todayYmd } from './customer-notes'
 import { isBirthdaySuppressed, BIRTHDAY_WINDOW_DAYS } from './todays-work'
 import MessageSendModal from './message-send-modal'
 import PanelShell from './panel-shell'
+import LineUnlinkedBadge from './line-unlinked-badge'
 
 /** スマホで一度に見せる最大件数（超過分は「もっと見る」で展開）。 */
 const MOBILE_LIMIT = 5
@@ -25,6 +27,8 @@ interface Props {
 }
 
 interface UpcomingBirthday {
+  /** LINE未連携(CSVインポート由来)。送信系を無効化する(第25弾) */
+  lineUnlinked: boolean
   id: string
   name: string
   month: number
@@ -80,7 +84,7 @@ export default function BirthdayPanel({ friends, loading, error, onToast, onChan
       if (handled.has(f.id)) continue
       const daysUntil = daysUntilBirthday(md.month, md.day, today)
       if (daysUntil >= 0 && daysUntil <= BIRTHDAY_WINDOW_DAYS) {
-        list.push({ id: f.id, name: f.displayName, month: md.month, day: md.day, daysUntil })
+        list.push({ id: f.id, name: f.displayName, month: md.month, day: md.day, daysUntil, lineUnlinked: isImportPseudoId(f.lineUserId) })
       }
     }
     return list.sort((a, b) => a.daysUntil - b.daysUntil)
@@ -141,6 +145,11 @@ export default function BirthdayPanel({ friends, loading, error, onToast, onChan
                 className="border border-accent/40 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-accent/10 to-white"
               >
                 <div className="min-w-0">
+                  {b.lineUnlinked ? (
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-full">
+                      {b.name || '名前なし'} <LineUnlinkedBadge />
+                    </p>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => router.push(`/chats?friend=${b.id}&scene=birthday`)}
@@ -149,6 +158,7 @@ export default function BirthdayPanel({ friends, loading, error, onToast, onChan
                   >
                     {b.name || '名前なし'}
                   </button>
+                  )}
                   <p className="text-xs text-gray-600 mt-0.5">
                     {b.month}月{b.day}日
                     <span
@@ -161,6 +171,11 @@ export default function BirthdayPanel({ friends, loading, error, onToast, onChan
                   </p>
                 </div>
                 <div className="mt-auto flex items-center gap-2">
+                  {b.lineUnlinked ? (
+                    <span className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-gray-400 bg-gray-100 rounded-lg flex items-center justify-center">
+                    LINE未連携
+                  </span>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => setSendTarget({ id: b.id, name: b.name })}
@@ -169,6 +184,7 @@ export default function BirthdayPanel({ friends, loading, error, onToast, onChan
                   >
                     お祝いを送る
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => markDone(b.id)}

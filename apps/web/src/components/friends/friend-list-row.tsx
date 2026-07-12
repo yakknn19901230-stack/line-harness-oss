@@ -1,9 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { isImportPseudoId } from '@line-crm/shared'
 import type { FriendListItem } from '@/lib/api'
 import { contractDisplayName } from '@/lib/api'
 import TagBadge from './tag-badge'
+import LineUnlinkedBadge from './line-unlinked-badge'
 import { latestNotePreview } from './customer-notes'
 
 interface Props {
@@ -32,7 +34,12 @@ interface Props {
 // last column opens an inline tag editor (handled by the parent table).
 export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick, onSendMessageClick, selectionMode = false, selected = false, onToggleSelect }: Props) {
   const router = useRouter()
-  const navigateToChat = () => router.push(`/chats?friend=${friend.id}`)
+  // LINE未連携(CSVインポート由来)はチャット遷移・メッセージ送信を無効化する(第25弾)
+  const lineUnlinked = isImportPseudoId(friend.lineUserId)
+  const navigateToChat = () => {
+    if (lineUnlinked) return
+    router.push(`/chats?friend=${friend.id}`)
+  }
   const incoming = friend.latestIncomingMessage
   const scenario = friend.activeScenario
   const isFollowing = friend.isFollowing
@@ -104,6 +111,7 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
         )}
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{friend.displayName}</p>
+          {lineUnlinked && <LineUnlinkedBadge className="mt-0.5" />}
           <p className="text-[10px] text-gray-500 mt-0.5">登録: {formatJstDate(friend.createdAt)}</p>
           {!isFollowing && (
             <p className="text-[10px] text-red-500 mt-0.5">ブロック / 退会</p>
@@ -190,7 +198,7 @@ export default function FriendListRow({ friend, onTagEditClick, onEditInfoClick,
           </div>
         )}
         <div className="flex items-center gap-3 mt-0.5">
-          {onSendMessageClick && (
+          {onSendMessageClick && !lineUnlinked && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onSendMessageClick() }}

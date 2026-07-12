@@ -1,4 +1,5 @@
 import { extractFlexAltText } from '../utils/flex-alt-text.js';
+import { isImportPseudoId } from '@line-crm/shared';
 import {
   getBroadcastById,
   getBroadcasts,
@@ -119,7 +120,8 @@ export async function processBroadcastSend(
       }
 
       const friends = await getFriendsByTag(db, broadcast.target_tag_id);
-      const followingFriends = friends.filter((f) => f.is_following);
+      // LINE未連携の疑似ID(第25弾 CSVインポート)は配信対象・件数から除外
+      const followingFriends = friends.filter((f) => f.is_following && !isImportPseudoId(f.line_user_id));
       totalCount = followingFriends.length;
 
       // Send in batches with stealth delays to mimic human patterns
@@ -222,7 +224,7 @@ export async function sendTagBroadcastPerFriend(
 
   try {
     const friends = await getFriendsByTag(db, broadcast.target_tag_id);
-    const following = friends.filter((f) => f.is_following);
+    const following = friends.filter((f) => f.is_following && !isImportPseudoId(f.line_user_id));
 
     if (following.length > VARIABLE_BROADCAST_MAX_RECIPIENTS) {
       throw new Error(
@@ -460,7 +462,7 @@ async function processQueuedBroadcastBatches(
   } else if (broadcast.target_tag_id) {
     const { getFriendsByTag } = await import('@line-crm/db');
     const tagFriends = await getFriendsByTag(db, broadcast.target_tag_id);
-    friends = tagFriends.filter(f => f.is_following).map(f => ({ id: f.id, line_user_id: f.line_user_id }));
+    friends = tagFriends.filter(f => f.is_following && !isImportPseudoId(f.line_user_id)).map(f => ({ id: f.id, line_user_id: f.line_user_id }));
   } else {
     // target_type='all' でキューに入ることはないが、念のため
     const { requestId } = await lineClient.broadcast([message]);

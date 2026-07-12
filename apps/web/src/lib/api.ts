@@ -163,6 +163,31 @@ export type InsuranceProductItem = {
   productName: string
 }
 
+/** 第25弾 — CSVインポートの1行(ブラウザ側で正規化済み。日付はYYYY-MM-DD)。 */
+export type ImportRowPayload = {
+  displayName: string
+  furigana?: string | null
+  birthday?: string | null
+  phone?: string | null
+  email?: string | null
+  memo?: string | null
+  contracts?: Array<{
+    categoryName?: string | null
+    companyName?: string | null
+    productName: string
+    renewalDate?: string | null
+  }>
+}
+
+/** 第25弾 — インポート結果。 */
+export type ImportResultData = {
+  created: number
+  updated: number
+  contractsAdded: number
+  unmatchedProducts: string[]
+  skipped: Array<{ row: number; reason: string }>
+}
+
 /** 第23弾 — 乗り換えルール1件(新旧両側の名称付き)。マスターは hozenkun-assistant 側。 */
 export type SwitchRuleItem = {
   id: string
@@ -277,6 +302,12 @@ export const api = {
       fetchApi<ApiResponse<{ text: string; model: string }>>(`/api/friends/${id}/ai-draft`, {
         method: 'POST',
         body: JSON.stringify({ scene }),
+      }),
+    /** 第25弾 — CSVインポートの確定(正規化済み行を送る。最大500行)。 */
+    import: (rows: ImportRowPayload[]) =>
+      fetchApi<ApiResponse<ImportResultData>>('/api/friends/import', {
+        method: 'POST',
+        body: JSON.stringify({ rows }),
       }),
   },
   tags: {

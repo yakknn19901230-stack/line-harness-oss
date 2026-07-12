@@ -4,12 +4,14 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, contractDisplayName } from '@/lib/api'
 import type { FriendListItem, SwitchRuleItem } from '@/lib/api'
+import { isImportPseudoId } from '@line-crm/shared'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import { todayYmd } from './customer-notes'
 import { switchTargets } from './todays-work'
 import { switchProposalFills } from './message-scenes'
 import MessageSendModal from './message-send-modal'
 import PanelShell from './panel-shell'
+import LineUnlinkedBadge from './line-unlinked-badge'
 
 /** スマホで一度に見せる最大件数（超過分は「もっと見る」で展開）。 */
 const MOBILE_LIMIT = 5
@@ -27,6 +29,8 @@ interface Props {
 }
 
 interface SwitchProposal {
+  /** LINE未連携(CSVインポート由来)。送信系を無効化する(第25弾) */
+  lineUnlinked: boolean
   friendId: string
   name: string
   /** 現契約の表示名（会社名 商品名） */
@@ -58,6 +62,7 @@ export default function SwitchPanel({ friends, rules, loading, error, onToast, o
       .map((t) => ({
         friendId: t.friend.id,
         name: t.friend.displayName,
+        lineUnlinked: isImportPseudoId(t.friend.lineUserId),
         currentName: contractDisplayName(t.contract) || '契約',
         proposedName: `${t.rule.newCompanyName ?? ''} ${t.rule.newProductName ?? ''}`.trim() || '新商品',
         memo: t.rule.memo,
@@ -117,6 +122,11 @@ export default function SwitchPanel({ friends, rules, loading, error, onToast, o
                 className="border border-gray-200 rounded-lg p-3 flex flex-col gap-2 bg-gradient-to-b from-brand/5 to-white"
               >
                 <div className="min-w-0">
+                  {p.lineUnlinked ? (
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-full">
+                      {p.name || '名前なし'} <LineUnlinkedBadge />
+                    </p>
+                  ) : (
                   <button
                     type="button"
                     onClick={() =>
@@ -131,6 +141,7 @@ export default function SwitchPanel({ friends, rules, loading, error, onToast, o
                   >
                     {p.name || '名前なし'}
                   </button>
+                  )}
                   <p className="text-xs text-gray-600 mt-0.5 truncate">{p.currentName}</p>
                   <p className="text-xs text-gray-600 mt-0.5 truncate">
                     <span className="text-brand font-medium">→ {p.proposedName}</span>
@@ -138,6 +149,11 @@ export default function SwitchPanel({ friends, rules, loading, error, onToast, o
                   {p.memo && <p className="text-xs text-gray-500 mt-1">{p.memo}</p>}
                 </div>
                 <div className="mt-auto flex items-center gap-2">
+                  {p.lineUnlinked ? (
+                    <span className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-gray-400 bg-gray-100 rounded-lg flex items-center justify-center">
+                    LINE未連携
+                  </span>
+                  ) : (
                   <button
                     type="button"
                     onClick={() => setSendTarget(p)}
@@ -146,6 +162,7 @@ export default function SwitchPanel({ friends, rules, loading, error, onToast, o
                   >
                     ご案内を送る
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => markDone({ friendId: p.friendId, contractId: p.contractId })}

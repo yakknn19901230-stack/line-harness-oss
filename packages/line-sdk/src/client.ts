@@ -11,6 +11,15 @@ import type {
 
 const LINE_API_BASE = 'https://api.line.me';
 
+// CSVインポート由来の「LINE未連携」疑似ID(第25弾)。
+// 実在のLINEユーザーではないため、pushMessage / multicast はAPIを呼ばずにスキップする
+// (この2メソッドが全ての個別送信の必経路)。
+// プレフィックスは @line-crm/shared の IMPORT_PSEUDO_ID_PREFIX と一致させること
+// (パッケージ間の依存を増やさないため文字列を重複定義し、同値性はworkerのテストで担保)。
+export const IMPORT_PSEUDO_ID_PREFIX = 'import:';
+
+const isImportPseudoId = (to: string): boolean => to.startsWith(IMPORT_PSEUDO_ID_PREFIX);
+
 export interface FollowersInsight {
   status: string;
   followers?: number;
@@ -76,6 +85,11 @@ export class LineClient {
   // ─── Messaging ───────────────────────────────────────────────────────────
 
   async pushMessage(to: string, messages: Message[]): Promise<unknown> {
+    if (isImportPseudoId(to)) {
+      // LINE未連携の疑似ID宛て — 送らずにスキップ(push成功時と同じ undefined を返す)
+      console.log('[line-sdk] skip push to import pseudo id');
+      return undefined;
+    }
     const body: PushMessageRequest = { to, messages };
     const { data } = await this.request('POST', '/v2/bot/message/push', body);
     return data;
@@ -86,7 +100,16 @@ export class LineClient {
     messages: Message[],
     customAggregationUnits?: string[],
   ): Promise<{ data: unknown; requestId: string | null }> {
-    const body: Record<string, unknown> = { to, messages };
+    const recipients = to.filter((id) => !isImportPseudoId(id));
+    if (recipients.length < to.length) {
+      console.log(
+        `[line-sdk] skip ${to.length - recipients.length} import pseudo id(s) in multicast`,
+      );
+    }
+    if (recipients.length === 0) {
+      return { data: undefined, requestId: null };
+    }
+    const body: Record<string, unknown> = { to: recipients, messages };
     if (customAggregationUnits) {
       body.customAggregationUnits = customAggregationUnits;
     }
