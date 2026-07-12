@@ -7,6 +7,7 @@ import type { FriendListItem, SwitchRuleItem } from '@/lib/api'
 import { useIsNarrow } from '@/hooks/use-is-narrow'
 import { todayYmd } from './customer-notes'
 import { switchTargets } from './todays-work'
+import { switchProposalFills } from './message-scenes'
 import MessageSendModal from './message-send-modal'
 import PanelShell from './panel-shell'
 
@@ -118,7 +119,13 @@ export default function SwitchPanel({ friends, rules, loading, error, onToast, o
                 <div className="min-w-0">
                   <button
                     type="button"
-                    onClick={() => router.push(`/chats?friend=${p.friendId}&scene=switch_proposal`)}
+                    onClick={() =>
+                      // fillCurrent/fillProposed はチャット側の文面プリセットで商品名を穴埋めする
+                      router.push(
+                        `/chats?friend=${p.friendId}&scene=switch_proposal&` +
+                          new URLSearchParams({ fillCurrent: p.currentName, fillProposed: p.proposedName }).toString(),
+                      )
+                    }
                     className="text-sm font-medium text-gray-900 hover:text-brand hover:underline truncate max-w-full text-left"
                     title="チャットを開く（乗り換え提案文面をプリセット）"
                   >
@@ -168,6 +175,7 @@ export default function SwitchPanel({ friends, rules, loading, error, onToast, o
           friendId={sendTarget.friendId}
           friendName={sendTarget.name}
           initialSceneId="switch_proposal"
+          sceneFills={switchProposalFills(sendTarget.currentName, sendTarget.proposedName)}
           onClose={() => setSendTarget(null)}
           onSent={(message) => {
             onToast(message)

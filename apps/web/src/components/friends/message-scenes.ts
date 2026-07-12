@@ -190,6 +190,33 @@ export function findScene(sceneId: string | undefined): MessageScene {
   return MESSAGE_SCENES.find((s) => s.id === sceneId) ?? MESSAGE_SCENES[0]
 }
 
+/**
+ * 場面文面の【…】穴埋めプレースホルダを実データで置換する共通ヘルパ。
+ * fills のキーは【…】を含む全文一致（例: '【現在の商品名】'）。値が空のキーは埋めずに残す
+ * （手で埋める従来運用のまま）。fills 未指定なら何もしない。
+ */
+export function applySceneFills(text: string, fills?: Record<string, string>): string {
+  if (!fills) return text
+  let out = text
+  for (const [placeholder, value] of Object.entries(fills)) {
+    if (!value) continue
+    out = out.split(placeholder).join(value)
+  }
+  return out
+}
+
+/**
+ * 場面 switch_proposal の穴埋めセット（第23弾）。
+ * プレースホルダ表記は文面テンプレと対で、このファイルの中だけで一致を管理する。
+ * 呼び出し側（乗り換え提案パネル等）は商品名を渡すだけでよい。
+ */
+export function switchProposalFills(currentName: string, proposedName: string): Record<string, string> {
+  return {
+    '【現在の商品名】': currentName,
+    '【乗り換え先の商品名】': proposedName,
+  }
+}
+
 /** バリアント（枝分かれ）を持つ場面かどうか。 */
 export function hasVariants(scene: MessageScene): boolean {
   return Array.isArray(scene.variants) && scene.variants.length > 0
@@ -198,13 +225,19 @@ export function hasVariants(scene: MessageScene): boolean {
 /**
  * text が（name 差し込み済みの）いずれかの場面／バリアント定型文と完全一致するか。
  * 「未編集の定型文なら黙って置き換える／編集済みなら確認する」の判定に使う。
+ * fills を渡すと穴埋め済みの文面（applySceneFills 適用後）も未編集扱いにする。
  */
-export function isSceneText(text: string, name: string): boolean {
+export function isSceneText(text: string, name: string, fills?: Record<string, string>): boolean {
+  const matches = (template: string): boolean => {
+    const rendered = renderSceneMessage(template, name)
+    if (rendered === text) return true
+    return fills !== undefined && applySceneFills(rendered, fills) === text
+  }
   for (const scene of MESSAGE_SCENES) {
-    if (scene.template && renderSceneMessage(scene.template, name) === text) return true
+    if (scene.template && matches(scene.template)) return true
     if (scene.variants) {
       for (const v of scene.variants) {
-        if (renderSceneMessage(v.template, name) === text) return true
+        if (matches(v.template)) return true
       }
     }
   }

@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import {
   MESSAGE_SCENES,
   DEFAULT_SCENE_ID,
+  applySceneFills,
   findScene,
   renderSceneMessage,
   hasVariants,
@@ -37,6 +38,11 @@ interface Props {
   defaultFree?: boolean
   /** 本文欄の上に参考表示するメモ（本文には入れない）。フォロー予定のメモ等。 */
   referenceNote?: string
+  /**
+   * 定型文の【…】穴埋め（applySceneFills 形式。乗り換え提案パネルは商品名を渡す）。
+   * 場面チップを切り替えて戻しても穴埋め済み文面が復元される。
+   */
+  sceneFills?: Record<string, string>
   onClose: () => void
   /** 送信成功時。呼び出し側でトーストを出す */
   onSent: (message: string) => void
@@ -54,9 +60,13 @@ export default function MessageSendModal({
   initialSceneId,
   defaultFree = false,
   referenceNote,
+  sceneFills,
   onClose,
   onSent,
 }: Props) {
+  // 定型文の描画はここに一本化: {name} 差し込み → 【…】穴埋め（sceneFills 指定時のみ）。
+  const renderTemplate = (template: string) =>
+    applySceneFills(renderSceneMessage(template, friendName), sceneFills)
   const firstScene = findScene(initialSceneId ?? DEFAULT_SCENE_ID)
   const [selectedSceneId, setSelectedSceneId] = useState(defaultFree ? FREE_ID : firstScene.id)
   // バリアントを持つ場面を選んだとき、枝分かれ選択肢を出す対象の場面ID（null で非表示）。
@@ -66,7 +76,7 @@ export default function MessageSendModal({
   )
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
   const [message, setMessage] = useState(() =>
-    defaultFree ? '' : renderSceneMessage(firstScene.template ?? '', friendName),
+    defaultFree ? '' : renderTemplate(firstScene.template ?? ''),
   )
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -95,7 +105,7 @@ export default function MessageSendModal({
   // チップ選択時の置き換え可否。空 or 未編集（いずれかの定型文と一致）なら黙って
   // 置き換え、ユーザーが編集した内容が入っているときだけ確認する（追記はしない）。
   const confirmReplace = () => {
-    if (message.trim() !== '' && !isSceneText(message, friendName)) {
+    if (message.trim() !== '' && !isSceneText(message, friendName, sceneFills)) {
       return window.confirm('入力中の文面を置き換えますか？')
     }
     return true
@@ -112,7 +122,7 @@ export default function MessageSendModal({
     }
     if (scene.id === selectedSceneId && variantSceneId === null) return
     if (!confirmReplace()) return
-    setMessage(renderSceneMessage(scene.template ?? '', friendName))
+    setMessage(renderTemplate(scene.template ?? ''))
     setSelectedSceneId(scene.id)
     setSelectedVariantId(null)
     setVariantSceneId(null)
@@ -122,7 +132,7 @@ export default function MessageSendModal({
 
   const selectVariant = (scene: MessageScene, variant: SceneVariant) => {
     if (!confirmReplace()) return
-    setMessage(renderSceneMessage(variant.template, friendName))
+    setMessage(renderTemplate(variant.template))
     setSelectedSceneId(scene.id)
     setSelectedVariantId(variant.id)
     setError('')

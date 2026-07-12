@@ -11,7 +11,7 @@ import FriendInfoSidebar from '@/components/chats/friend-info-sidebar'
 import ImageUploader, { type ImageUploaderValue } from '@/components/shared/image-uploader'
 import SceneInsertButton from '@/components/chats/scene-insert-button'
 import MemoHintButton from '@/components/chats/memo-hint-button'
-import { MESSAGE_SCENES, renderSceneMessage, isSceneText } from '@/components/friends/message-scenes'
+import { MESSAGE_SCENES, applySceneFills, renderSceneMessage, isSceneText, switchProposalFills } from '@/components/friends/message-scenes'
 
 interface Chat {
   id: string
@@ -453,12 +453,24 @@ export default function ChatsPage() {
     }
   }, [selectedChatId, loadChatDetail])
 
+  // URLの ?fillCurrent=/?fillProposed=（乗り換え提案パネル由来）から穴埋めセットを読む。
+  // プリセットと未編集判定の両方で使う（穴埋め済み文面も「未編集の定型文」として扱うため）。
+  const urlSwitchFills = (): Record<string, string> | undefined => {
+    if (typeof window === 'undefined') return undefined
+    const params = new URLSearchParams(window.location.search)
+    const fillCurrent = params.get('fillCurrent')
+    const fillProposed = params.get('fillProposed')
+    return params.get('scene') === 'switch_proposal' && fillCurrent && fillProposed
+      ? switchProposalFills(fillCurrent, fillProposed)
+      : undefined
+  }
+
   // 場面文面を入力欄へ「置き換え」で挿入する（追記はしない）。
   // 空 or 未編集（いずれかの定型文と一致）なら黙って置き換え、編集済みなら確認する。
   const insertScene = (text: string) => {
     const prev = messageContent
     const name = chatDetail?.friendName ?? ''
-    if (prev.trim() !== '' && !isSceneText(prev, name)) {
+    if (prev.trim() !== '' && !isSceneText(prev, name, urlSwitchFills())) {
       if (!window.confirm('入力中の文面を置き換えますか？')) return
     }
     setMessageContent(text)
@@ -468,10 +480,13 @@ export default function ChatsPage() {
   // ダッシュボードのパネルから ?scene=<sceneId> 付きで遷移してきたとき、その顧客の
   // 名前を差し込んだ場面文面を入力欄にプリセットする（顧客名が判明する chatDetail
   // ロード後）。入力済みなら上書きしない。同じ chat×scene には一度だけ適用する。
+  // 乗り換え提案パネルは ?fillCurrent=／?fillProposed= に商品名を載せてくるので、
+  // switch_proposal の【…】穴埋めもここで済ませる（両方揃っているときだけ）。
   const presetAppliedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!chatDetail || typeof window === 'undefined') return
-    const sceneId = new URLSearchParams(window.location.search).get('scene')
+    const params = new URLSearchParams(window.location.search)
+    const sceneId = params.get('scene')
     if (!sceneId) return
     const key = `${chatDetail.id}:${sceneId}`
     if (presetAppliedRef.current === key) return
@@ -480,7 +495,10 @@ export default function ChatsPage() {
     if (!scene || !scene.template) return
     presetAppliedRef.current = key
     const template = scene.template
-    setMessageContent((prev) => (prev.trim() === '' ? renderSceneMessage(template, chatDetail.friendName) : prev))
+    const fills = urlSwitchFills()
+    setMessageContent((prev) =>
+      prev.trim() === '' ? applySceneFills(renderSceneMessage(template, chatDetail.friendName), fills) : prev,
+    )
   }, [chatDetail])
 
   // Surface deep-linked chats in the sidebar even when the current account
