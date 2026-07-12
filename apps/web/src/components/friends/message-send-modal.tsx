@@ -79,6 +79,8 @@ export default function MessageSendModal({
     defaultFree ? '' : renderTemplate(firstScene.template ?? ''),
   )
   const [sending, setSending] = useState(false)
+  // 第24弾 — AIで下書き(中継ゲートウェイ経由)。生成中はボタンを無効化。
+  const [aiLoading, setAiLoading] = useState(false)
   const [error, setError] = useState('')
   // 2段階送信: 1回目のクリックで確定待ちにし、2回目で実送信。
   const [confirming, setConfirming] = useState(false)
@@ -137,6 +139,30 @@ export default function MessageSendModal({
     setSelectedVariantId(variant.id)
     setError('')
     cancelConfirm()
+  }
+
+  // AIで下書き: 選択中の場面と顧客情報(サーバ側で最小限に組み立て)から生成し、本文に流し込む。
+  // 定型文のまま(未編集)なら黙って差し替え、手編集済みのときだけ上書き確認する。
+  const generateAiDraft = async () => {
+    if (aiLoading || sending) return
+    if (!confirmReplace()) return
+    setAiLoading(true)
+    setError('')
+    cancelConfirm()
+    try {
+      const sceneLabel =
+        selectedSceneId === FREE_ID ? '自由なメッセージ' : findScene(selectedSceneId).label
+      const res = await api.friends.aiDraft(friendId, sceneLabel)
+      if (res.success && res.data.text.trim() !== '') {
+        setMessage(res.data.text)
+      } else {
+        setError('AI下書きを作れませんでした。定型文をご利用ください。')
+      }
+    } catch {
+      setError('AI下書きを作れませんでした。定型文をご利用ください。')
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   // 「自由に書く」: 本文を空にして自由入力にする。
@@ -247,6 +273,23 @@ export default function MessageSendModal({
                   自由に書く
                 </button>
               </div>
+
+              {/* AIで下書き（第24弾）。選択中の場面＋顧客情報からゲートウェイ経由で生成 */}
+              <button
+                type="button"
+                onClick={generateAiDraft}
+                disabled={aiLoading || sending}
+                className="mt-2 inline-flex items-center gap-1.5 px-3.5 min-h-[44px] rounded-full text-sm font-medium text-brand border border-accent bg-accent/10 hover:bg-accent/20 transition-colors disabled:opacity-60"
+              >
+                {aiLoading ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-accent/40 border-t-brand rounded-full animate-spin" aria-hidden="true" />
+                    AIが下書きを作成中…
+                  </>
+                ) : (
+                  <>✨ AIで下書き</>
+                )}
+              </button>
 
               {/* バリアント（枝分かれ）選択肢。バリアントを持つ場面を選んだときのみ表示。 */}
               {(() => {

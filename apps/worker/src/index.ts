@@ -77,6 +77,8 @@ import { richMenuGroups } from './routes/rich-menu-groups.js';
 import { insurance } from './routes/insurance.js';
 // 第22弾: 契約リストの正規化
 import { friendContracts } from './routes/friend-contracts.js';
+// 第24弾: AIメッセージ下書き(中継ゲートウェイ方式)
+import { aiDraft } from './routes/ai-draft.js';
 import adminVersion from './routes/admin-version.js';
 import adminUpdate from './routes/admin-update.js';
 
@@ -117,6 +119,10 @@ export type Env = {
     WORKER_PUBLIC_URL?: string;
     ADMIN_PUBLIC_URL?: string;
     LIFF_PUBLIC_URL?: string;
+    // 第24弾 AIメッセージ下書き(中継ゲートウェイ方式)。両方optional:
+    // 未設定なら /api/friends/:id/ai-draft は503を返す(他機能に影響なし)。
+    AI_GATEWAY_URL?: string;    // wrangler.toml [vars](公開URL。シークレットではない)
+    AI_GATEWAY_TOKEN?: string;  // wrangler secret put(インスタンス別トークン)
   };
   Variables: {
     staff: { id: string; name: string; role: 'owner' | 'admin' | 'staff' };
@@ -195,6 +201,8 @@ app.route('/', richMenuGroups);
 app.route('/', insurance);
 // 第22弾 — 契約リスト正規化API (/api/friends/:id/contracts)
 app.route('/', friendContracts);
+// 第24弾 — AIメッセージ下書きAPI (/api/friends/:id/ai-draft)
+app.route('/', aiDraft);
 
 // Phase 5 (upgrade flow) — public build metadata endpoint. Mounted under
 // /admin/ but intentionally unauthenticated: the dashboard fetches /admin/version

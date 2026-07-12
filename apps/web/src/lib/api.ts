@@ -272,6 +272,12 @@ export const api = {
           body: JSON.stringify({ switchNotifiedAt }),
         }),
     },
+    /** 第24弾 — AIメッセージ下書き(中継ゲートウェイ経由)。scene はUIの場面ラベル。 */
+    aiDraft: (id: string, scene: string) =>
+      fetchApi<ApiResponse<{ text: string; model: string }>>(`/api/friends/${id}/ai-draft`, {
+        method: 'POST',
+        body: JSON.stringify({ scene }),
+      }),
   },
   tags: {
     list: () =>
